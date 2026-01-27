@@ -59,9 +59,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--robot", type=str, required=True)
+    parser.add_argument("--robot", type=str, required=False, default="PandaDexRH")
     parser.add_argument("--base", type=str, default=None)
-    parser.add_argument("--grippers", nargs="+", type=str, default=["PandaGripper"])
+    parser.add_argument("--grippers", nargs="+", type=str, default=["InspireRightHand"])
     parser.add_argument("--env", type=str, default="Lift")
     parser.add_argument("--headless", action="store_true")
     parser.add_argument(
