@@ -1,5 +1,6 @@
 import os
 import shutil
+from pathlib import Path
 
 import imageio
 import numpy as np
@@ -16,7 +17,7 @@ import robosuite.environments.manipulation.lift_corsi_min
 RENDER_MODE = "online"  # "online" or "offline"
 ONLINE_RENDER_CAMERA = "frontview"
 OFFLINE_CAMERAS = ["frontview", "birdview"]
-KEEP_FRAMES = True
+SAVE_PNG_FRAMES = False
 
 @register_gripper
 class InspireRightHandWithInit(InspireRightHand):
@@ -87,8 +88,10 @@ class PandaDexRH(Panda):
     
 macros.IMAGE_CONVENTION = "opencv" 
 
-VIDEO_PATH = "/home/wei2025/Developer/cogrobot/robosuite/savevideo/corsi_pointing.mp4"
-FRAMES_DIR = "/home/wei2025/Developer/cogrobot/robosuite/savevideo/corsi_pointing_frames"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SAVE_ROOT = Path(os.environ.get("ROBOSUITE_SAVE_DIR", REPO_ROOT / "robosuite" / "savevideo"))
+VIDEO_PATH = SAVE_ROOT / "corsi_pointing.mp4"
+FRAMES_DIR = SAVE_ROOT / "corsi_pointing_frames"
 FPS = 20
 MAX_ROUNDS = 2
 
@@ -182,16 +185,17 @@ def run_online_render(env):
 
 
 def build_video_from_frames(frames_dir, video_path, fps=20):
-    frame_files = sorted(name for name in os.listdir(frames_dir) if name.endswith(".png"))
+    frames_dir = Path(frames_dir)
+    video_path = Path(video_path)
+    frame_files = sorted(path for path in frames_dir.iterdir() if path.suffix == ".png")
     if not frame_files:
         raise RuntimeError(f"No frames found under {frames_dir}")
 
-    os.makedirs(os.path.dirname(video_path), exist_ok=True)
+    video_path.parent.mkdir(parents=True, exist_ok=True)
     valid_count = 0
     with imageio.get_writer(video_path, fps=fps) as writer:
-        for file_name in frame_files:
-            frame_path = os.path.join(frames_dir, file_name)
-            if os.path.getsize(frame_path) == 0:
+        for frame_path in frame_files:
+            if frame_path.stat().st_size == 0:
                 print(f"Skip empty frame: {frame_path}")
                 continue
             try:
@@ -207,36 +211,43 @@ def build_video_from_frames(frames_dir, video_path, fps=20):
 
 
 def run_offline_render(env, video_path, frames_dir, fps=20, keep_frames=False):
+    frames_dir = Path(frames_dir)
+    video_path = Path(video_path)
     shutil.rmtree(frames_dir, ignore_errors=True)
-    for cam_name in OFFLINE_CAMERAS:
-        os.makedirs(os.path.join(frames_dir, cam_name), exist_ok=True)
-
-    state = init_episode_state(env)
-    while state["rounds_done"] < MAX_ROUNDS:
-        action = step_policy(state)
-        state["obs"], _, _, _ = env.step(action)
+    if keep_frames:
         for cam_name in OFFLINE_CAMERAS:
-            obs_key = f"{cam_name}_image"
-            if obs_key not in state["obs"]:
-                raise KeyError(f"Missing camera obs '{obs_key}'. Available keys: {list(state['obs'].keys())}")
-            frame = state["obs"][obs_key]
-            imageio.imwrite(
-                os.path.join(frames_dir, cam_name, f"frame_{state['step']:05d}.png"),
-                frame,
-            )
-        state["step"] += 1
+            (frames_dir / cam_name).mkdir(parents=True, exist_ok=True)
 
-    video_dir = os.path.dirname(video_path)
-    video_root, video_ext = os.path.splitext(os.path.basename(video_path))
-    for cam_name in OFFLINE_CAMERAS:
-        cam_frames_dir = os.path.join(frames_dir, cam_name)
-        cam_video_path = os.path.join(video_dir, f"{video_root}_{cam_name}{video_ext}")
-        build_video_from_frames(cam_frames_dir, cam_video_path, fps=fps)
-        print(f"Video saved to {cam_video_path}")
+    video_path.parent.mkdir(parents=True, exist_ok=True)
+    video_root = video_path.stem
+    video_ext = video_path.suffix
+    writers = {
+        cam_name: imageio.get_writer(video_path.parent / f"{video_root}_{cam_name}{video_ext}", fps=fps)
+        for cam_name in OFFLINE_CAMERAS
+    }
+    try:
+        state = init_episode_state(env)
+        while state["rounds_done"] < MAX_ROUNDS:
+            action = step_policy(state)
+            state["obs"], _, _, _ = env.step(action)
+            for cam_name in OFFLINE_CAMERAS:
+                obs_key = f"{cam_name}_image"
+                if obs_key not in state["obs"]:
+                    raise KeyError(f"Missing camera obs '{obs_key}'. Available keys: {list(state['obs'].keys())}")
+                frame = state["obs"][obs_key]
+                writers[cam_name].append_data(frame)
+                if keep_frames:
+                    imageio.imwrite(
+                        frames_dir / cam_name / f"frame_{state['step']:05d}.png",
+                        frame,
+                    )
+            state["step"] += 1
+    finally:
+        for cam_name, writer in writers.items():
+            writer.close()
+            print(f"Video saved to {video_path.parent / f'{video_root}_{cam_name}{video_ext}'}")
 
-    if not keep_frames:
-        shutil.rmtree(frames_dir, ignore_errors=True)
-    else:
+    if keep_frames:
         print(f"Frames kept at {frames_dir}")
 
 
@@ -246,7 +257,13 @@ def main(render_mode="offline"):
         if render_mode == "online":
             run_online_render(env)
         else:
-            run_offline_render(env, VIDEO_PATH, FRAMES_DIR, fps=FPS, keep_frames=KEEP_FRAMES)
+            run_offline_render(
+                env,
+                VIDEO_PATH,
+                FRAMES_DIR,
+                fps=FPS,
+                keep_frames=SAVE_PNG_FRAMES,
+            )
     finally:
         env.close()
 
