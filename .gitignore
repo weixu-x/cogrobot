@@ -116,6 +116,7 @@ MUJOCO_LOG.TXT
 .idea
 # add
 *.png 
+*.mp4
 
 .pytest_cache/
 
