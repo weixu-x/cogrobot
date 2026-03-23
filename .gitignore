@@ -114,6 +114,8 @@ MUJOCO_LOG.TXT
 
 *.jpg
 .idea
+# add
+*.png 
 
 .pytest_cache/
 
