@@ -1,0 +1,19 @@
+{
+  "train_trials": 50000,
+  "val_trials": 5000,
+  "seq_min": 2,
+  "seq_max": 9,
+  "feature_mode": "xydxdy",
+  "batch_size": 64,
+  "epochs": 30,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0,
+  "coord_embedding_dim": 64,
+  "token_embedding_dim": 64,
+  "hidden_dim": 128,
+  "num_layers": 1,
+  "dropout": 0.0,
+  "seed": 7,
+  "device": "auto",
+  "output_dir": "corsi_artifacts/coord_baseline_mixed_2_9"
+}
