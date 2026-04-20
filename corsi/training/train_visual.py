@@ -230,6 +230,44 @@ def save_final_summary(output_dir: Path, summary: Dict[str, object]) -> None:
         json.dump(summary, handle, indent=2)
 
 
+def dataset_summary(dataset) -> Dict[str, object]:
+    if isinstance(dataset, Subset):
+        base = dataset.dataset
+        summary = dataset_summary(base)
+        summary["subset_size"] = len(dataset)
+        summary["subset_indices"] = {
+            "count": len(dataset.indices),
+        }
+        return summary
+
+    if isinstance(dataset, RobosuiteVisualCorsiDataset):
+        return {
+            "dataset_root": str(dataset.dataset_root),
+            "dataset_name": dataset.dataset_name,
+            "split_name": dataset.split_name,
+            "num_samples": len(dataset),
+            "camera_names": dataset.camera_names,
+            "camera_name_selected": dataset.camera_name,
+            "include_reset_frame": dataset.include_reset_frame,
+            "root_manifest": dataset.root_manifest,
+        }
+
+    return {
+        "dataset_type": type(dataset).__name__,
+        "num_samples": len(dataset),
+    }
+
+
+def save_dataset_info(output_dir: Path, train_dataset, val_dataset) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "train_dataset": dataset_summary(train_dataset),
+        "val_dataset": dataset_summary(val_dataset),
+    }
+    with open(output_dir / "dataset_info.json", "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2)
+
+
 def build_datasets(config: TrainVisualConfig):
     train_dataset = RobosuiteVisualCorsiDataset(
         config.dataset_root,
@@ -259,6 +297,7 @@ def main() -> None:
     print(json.dumps(device_info))
 
     train_dataset, val_dataset = build_datasets(config)
+    save_dataset_info(output_dir, train_dataset, val_dataset)
     train_loader = build_dataloader(train_dataset, batch_size=config.batch_size, shuffle=True)
     val_loader = build_dataloader(val_dataset, batch_size=config.batch_size, shuffle=False)
 

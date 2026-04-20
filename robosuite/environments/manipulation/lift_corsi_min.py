@@ -22,11 +22,13 @@ class CorsiSceneDemo(ManipulationEnv):
         self,
         robots,
         block_xy_positions: Optional[Sequence[Tuple[float, float]]] = None,
+        corsi_board_size_xy: Optional[Tuple[float, float]] = None,
         **kwargs,
     ):
         # 你不需要 object obs
         # kwargs.setdefault("use_object_obs", False)
         self.block_xy_positions = None if block_xy_positions is None else list(block_xy_positions)
+        self.corsi_board_size_xy = None if corsi_board_size_xy is None else tuple(corsi_board_size_xy)
         super().__init__(robots=robots, **kwargs)
 
     def _load_model(self):
@@ -46,6 +48,7 @@ class CorsiSceneDemo(ManipulationEnv):
             table_offset=table_offset,
             rows=3, cols=3,
             block_xy_positions=self.block_xy_positions,
+            corsi_board_size_xy=self.corsi_board_size_xy,
         )
         mujoco_arena.set_origin([0, 0, 0])
 

@@ -306,3 +306,14 @@ Reference:
 - Added the first visual baseline stack: `VisualSeq2SeqLSTM`, `train_visual.py`, and a `visual_smoke_test.json` config so robosuite `freecam` keyframes can be trained with a CNN + LSTM + index decoding pipeline.
 - Reorganized experiment-facing assets into `corsi/experiments/coordinate_base/` and `corsi/experiments/visual_base/`, while keeping shared code in `envs / data / models / training / analysis / scripts`.
 - Moved configs, reports, and roadmap-style docs under those experiment hubs, and grouped `corsi_artifacts/` into `coordinate_base/` and `visual_base/{camera, previews, datasets, training, legacy}`.
+- Scaled the visual baseline interface from preview-only roots toward official train / val dataset roots by adding richer dataset manifest metadata, dataset-info export during training, and baseline-specific visual experiment documentation.
+
+### 2026-04-20
+
+- Exported the first official robosuite `freecam` train / val visual baseline splits:
+  - `corsi_artifacts/visual_base/datasets/freecam_index_v1_train`
+  - `corsi_artifacts/visual_base/datasets/freecam_index_v1_val`
+- Added `corsi/experiments/visual_base/configs/freecam_index_v1_baseline.json` as the first fixed-root train / val visual training config.
+- Ran the first `freecam` visual baseline training to `corsi_artifacts/visual_base/training/freecam_index_v1_baseline`.
+- Recorded the initial baseline report in `corsi/experiments/visual_base/reports/freecam_index_v1_baseline.md`.
+- The pipeline is now stable end to end, but the model performance is still weak; the next step remains scaling the baseline dataset before moving on to delay, heatmap, or timing variants.

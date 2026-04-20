@@ -40,6 +40,11 @@ class CorsiTableArena(Arena):
         tabletop_site_name: str = "table_top",
         table_body_name: str = "table",
         block_xy_positions: Optional[Sequence[Tuple[float, float]]] = None,
+        corsi_board_size_xy: Optional[Tuple[float, float]] = None,
+        board_outline_thickness: float = 0.008,
+        board_outline_height: float = 0.004,
+        board_outline_rgba: Optional[Sequence[float]] = None,
+        board_outline_z_offset: float = 0.002,
 
     ):
         # 这些要在 super().__init__ 之前设好，因为 Arena.__init__ 会立刻调用 _postprocess_arena()
@@ -58,6 +63,13 @@ class CorsiTableArena(Arena):
         self.block_z_offset = float(block_z_offset)
         self.tabletop_site_name = tabletop_site_name
         self.block_xy_positions = None if block_xy_positions is None else np.array(block_xy_positions, dtype=float)
+        self.corsi_board_size_xy = None if corsi_board_size_xy is None else np.array(corsi_board_size_xy, dtype=float)
+        self.board_outline_thickness = float(board_outline_thickness)
+        self.board_outline_height = float(board_outline_height)
+        self.board_outline_z_offset = float(board_outline_z_offset)
+        if board_outline_rgba is None:
+            board_outline_rgba = [0.15, 0.13, 0.11, 1.0]
+        self.board_outline_rgba = np.array(board_outline_rgba, dtype=float)
 
         if block_rgba_list is None:
             block_rgba_list = [
@@ -154,6 +166,40 @@ class CorsiTableArena(Arena):
             positions.append(pos)
 
         self.block_positions = np.array(positions, dtype=float)
+        self._add_board_outline(center_xy=(cx, cy), top_z=tz)
+
+    def _add_board_outline(self, center_xy, top_z: float):
+        if self.corsi_board_size_xy is None:
+            return
+
+        board_width = float(self.corsi_board_size_xy[0])
+        board_height = float(self.corsi_board_size_xy[1])
+        cx, cy = center_xy
+        hz = self.board_outline_height / 2.0
+        z = float(top_z) + hz + self.board_outline_z_offset
+        half_thickness = self.board_outline_thickness / 2.0
+        half_width = board_width / 2.0
+        half_height = board_height / 2.0
+
+        outline_specs = [
+            ("corsi_outline_top", (cx, cy + half_height, z), (half_width + self.board_outline_thickness, half_thickness, hz)),
+            ("corsi_outline_bottom", (cx, cy - half_height, z), (half_width + self.board_outline_thickness, half_thickness, hz)),
+            ("corsi_outline_left", (cx - half_width, cy, z), (half_thickness, half_height, hz)),
+            ("corsi_outline_right", (cx + half_width, cy, z), (half_thickness, half_height, hz)),
+        ]
+
+        for name, pos, size in outline_specs:
+            geom = new_geom(
+                name=name,
+                type="box",
+                pos=array_to_string(np.array(pos, dtype=float)),
+                size=array_to_string(np.array(size, dtype=float)),
+                rgba=array_to_string(self.board_outline_rgba),
+                conaffinity="0",
+                contype="0",
+                group="1",
+            )
+            self.worldbody.append(geom)
 
 
     @staticmethod

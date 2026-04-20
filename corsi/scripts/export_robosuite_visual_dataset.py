@@ -23,6 +23,8 @@ def parse_args():
         type=str,
         default="corsi_artifacts/visual_base/datasets/robosuite_visual_dataset",
     )
+    parser.add_argument("--dataset-name", type=str, default="")
+    parser.add_argument("--split-name", type=str, default="")
     parser.add_argument("--cameras", type=str, default=FREE_CAMERA_NAME)
     parser.add_argument("--num-trials", type=int, default=8)
     parser.add_argument("--seq-len-range", type=str, default="2,4")
@@ -35,6 +37,7 @@ def parse_args():
     parser.add_argument("--arrival-threshold", type=float, default=0.01)
     parser.add_argument("--target-height", type=float, default=0.04)
     parser.add_argument("--keep-rollout-frames", action="store_true")
+    parser.add_argument("--keep-rollout-videos", action="store_true")
     return parser.parse_args()
 
 
@@ -83,13 +86,16 @@ def main() -> None:
         env_camera_names = ["agentview"]
 
     output_dir = Path(args.output_dir)
+    dataset_name = args.dataset_name or output_dir.name
+    split_name = args.split_name or output_dir.name
     samples_dir = output_dir / "samples"
     samples_dir.mkdir(parents=True, exist_ok=True)
+    seq_len_range = parse_seq_len_range(args.seq_len_range)
 
     sequences = load_sequences(
         args.sequences_json,
         num_trials=args.num_trials,
-        seq_len_range=parse_seq_len_range(args.seq_len_range),
+        seq_len_range=seq_len_range,
         seed=args.seed,
     )
 
@@ -127,13 +133,26 @@ def main() -> None:
                 target_height=args.target_height,
             )
 
+            if not args.keep_rollout_videos:
+                for camera_name in camera_names:
+                    camera_video_path = sample_dir / f"rollout_{camera_name}.mp4"
+                    if camera_video_path.exists():
+                        camera_video_path.unlink()
+
             sample_manifest = {
+                "dataset_name": dataset_name,
+                "split_name": split_name,
                 "trial_id": trial_id,
                 "camera_names": camera_names,
                 "sequence": sequence,
                 "length": len(sequence),
                 "reset_paths": reset_paths,
                 "keyframe_paths": build_keyframe_paths(sample_dir, camera_names, sequence),
+                "sample_structure": [
+                    "reset",
+                    "rollout_keyframes",
+                    "manifest.json",
+                ],
                 "metadata": {
                     "fps": args.fps,
                     "control_freq": args.control_freq,
@@ -157,9 +176,31 @@ def main() -> None:
         env.close()
 
     dataset_manifest = {
+        "dataset_name": dataset_name,
+        "split_name": split_name,
         "camera_names": camera_names,
         "num_samples": len(dataset_samples),
         "samples_dir": str(samples_dir),
+        "sequence_length_range": {
+            "min": seq_len_range[0],
+            "max": seq_len_range[1],
+        },
+        "sample_structure": [
+            "reset",
+            "rollout_keyframes",
+            "manifest.json",
+        ],
+        "export_params": {
+            "control_freq": args.control_freq,
+            "fps": args.fps,
+            "speed_gain": args.speed_gain,
+            "dwell_steps": args.dwell_steps,
+            "arrival_threshold": args.arrival_threshold,
+            "target_height": args.target_height,
+            "keep_rollout_frames": bool(args.keep_rollout_frames),
+            "keep_rollout_videos": bool(args.keep_rollout_videos),
+            "seed": args.seed,
+        },
         "samples": dataset_samples,
     }
     dataset_manifest_path = output_dir / "dataset_manifest.json"

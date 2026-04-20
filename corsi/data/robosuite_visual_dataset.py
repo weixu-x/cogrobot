@@ -38,6 +38,10 @@ class RobosuiteVisualCorsiDataset:
         self.samples = list(self.root_manifest.get("samples", []))
         if not self.samples:
             raise ValueError(f"No samples found in {root_manifest_path}")
+        self.dataset_name = str(self.root_manifest.get("dataset_name", self.dataset_root.name))
+        self.split_name = str(self.root_manifest.get("split_name", self.dataset_root.name))
+        self.camera_names = list(self.root_manifest.get("camera_names", []))
+        self.dataset_metadata = dict(self.root_manifest.get("export_params", {}))
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -82,6 +86,8 @@ class RobosuiteVisualCorsiDataset:
             frames = np.concatenate([reset_frame, frames], axis=0)
 
         return {
+            "dataset_name": self.dataset_name,
+            "split_name": self.split_name,
             "trial_id": str(sample["trial_id"]),
             "frames": frames,
             "targets": list(sample["sequence"]),
@@ -90,6 +96,7 @@ class RobosuiteVisualCorsiDataset:
             "frame_paths": frame_paths,
             "reset_path": reset_path,
             "manifest_path": str(sample["manifest_path"]),
+            "root_manifest_path": str(self.dataset_root / "dataset_manifest.json"),
             "metadata": dict(sample.get("metadata", {})),
             "include_reset_frame": self.include_reset_frame,
         }

@@ -22,6 +22,7 @@ The core task is not grasping. The robot keeps a fixed pointing hand shape and m
 - `corsi/analysis/`: shared metrics and analysis utilities.
 - `corsi/experiments/`: experiment hubs grouped by track.
   Current tracks: `coordinate_base/` and `visual_base/`.
+  The current active visual baseline is `robosuite freecam -> keyframe dataset -> CNN + LSTM -> index sequence`.
 
 ## Planned Milestones
 
