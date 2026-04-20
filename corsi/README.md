@@ -13,15 +13,15 @@ The core task is not grasping. The robot keeps a fixed pointing hand shape and m
 
 ## Directory Layout
 
-- `corsi/envs/`: task logic and sequence generation that do not need robosuite registration.
-  Includes reusable robosuite helpers for Corsi pointing demos.
+- `corsi/envs/`: task logic and reusable robosuite helpers.
+- `corsi/scripts/`: shared runnable utilities for robosuite demos, exports, and camera tools.
 - `corsi/rendering/`: lightweight renderers and image generation tools.
-- `corsi/data/`: dataset definitions and collate functions.
-- `corsi/models/`: LSTM and later visual / attention models.
-- `corsi/training/`: training and inference entry points.
-- `corsi/analysis/`: metrics and error analysis.
-- `corsi/configs/`: experiment configs.
-  Includes ready-to-run coordinate training presets.
+- `corsi/data/`: reusable dataset definitions and collate functions.
+- `corsi/models/`: reusable model definitions.
+- `corsi/training/`: shared training runtimes and device helpers.
+- `corsi/analysis/`: shared metrics and analysis utilities.
+- `corsi/experiments/`: experiment hubs grouped by track.
+  Current tracks: `coordinate_base/` and `visual_base/`.
 
 ## Planned Milestones
 
@@ -40,14 +40,15 @@ Current implementation status:
 - train entry point supports cross-platform torch device resolution (`auto / cpu / mps / cuda`)
 
 Preset configs:
-- `corsi/configs/coord_smoke_test.json`
-- `corsi/configs/coord_baseline_mixed_2_6.json`
-- `corsi/configs/coord_baseline_mixed_2_9.json`
+- `corsi/experiments/coordinate_base/configs/coord_smoke_test.json`
+- `corsi/experiments/coordinate_base/configs/coord_baseline_mixed_2_6.json`
+- `corsi/experiments/coordinate_base/configs/coord_baseline_mixed_2_9.json`
 
 Example:
 
 ```bash
-python corsi/training/train_coord.py --config corsi/configs/coord_smoke_test.json
+python corsi/experiments/coordinate_base/scripts/train.py \
+  --config corsi/experiments/coordinate_base/configs/coord_smoke_test.json
 ```
 
 ### Milestone 2
@@ -65,6 +66,12 @@ python corsi/training/train_coord.py --config corsi/configs/coord_smoke_test.jso
 
 - Block-to-target action interface
 - Robosuite execution loop for pointing / tapping
+
+Direct local run:
+
+```bash
+.venv/bin/mjpython corsi/scripts/run_robosuite_corsi.py
+```
 
 ## Working Rule
 

@@ -6,7 +6,8 @@ This file tracks implementation progress and design decisions so the project sta
 
 - The robosuite side already contains a custom Corsi arena and a demo script.
 - The current demo is a rule-based pointing demonstration, not a trained memory model.
-- The next coding target is the minimal coordinate-based learning system.
+- The minimal coordinate-based learning system is now running.
+- The next research target is to add delay / maintenance conditions on top of the coordinate baseline.
 
 ## Task Breakdown
 
@@ -42,6 +43,20 @@ This file tracks implementation progress and design decisions so the project sta
 - Image renderer and image dataset
 - Visual encoder and motor-conditioned attention
 - Aging manipulations
+
+Delay / maintenance means:
+- the model first observes the presentation sequence
+- then there is a gap before recall starts
+- during that gap, the model must keep the sequence active in memory without new informative input
+
+Planned delay conditions:
+- `no_delay`: encoder output goes directly into decoding
+- `short_delay`: a small number of blank maintenance steps before decoding
+- `long_delay`: a larger number of blank maintenance steps before decoding
+
+Purpose:
+- measure retention, not just immediate sequence replay
+- create a clean entry point for later aging manipulations such as memory leak or hidden-state noise
 
 ## Design Decisions
 
@@ -87,6 +102,8 @@ Reason:
 - Added `corsi/training/device.py` for cross-platform PyTorch device resolution.
 - Added coordinate training preset configs under `corsi/configs/`.
 - Updated `.gitignore` to exclude local training artifacts under `corsi_artifacts/`.
+- Ran the first formal coordinate baseline training for `mixed-span 2-6` on Apple MPS.
+- Recorded the baseline result in a dedicated experiment note under `corsi/experiments/`.
 
 ## Implementation Notes
 
@@ -239,3 +256,53 @@ Implemented:
 - JSON config loading in `train_coord.py`
 - reusable smoke-test preset
 - reusable coordinate baseline presets for span 2-6 and 2-9
+
+## Experiment Notes
+
+### Baseline 1: Coordinate Mixed-Span 2-6
+
+Run date:
+- 2026-03-24
+
+Config:
+- `corsi/configs/coord_baseline_mixed_2_6.json`
+
+Device:
+- requested: `auto`
+- resolved: `mps`
+
+Result:
+- best epoch: `20`
+- best full-sequence accuracy: `1.0`
+- best token accuracy: `1.0`
+- estimated span: `6`
+
+Length-wise best accuracy:
+- length 2: `1.0`
+- length 3: `1.0`
+- length 4: `1.0`
+- length 5: `1.0`
+- length 6: `1.0`
+
+Interpretation:
+- the coordinate-only baseline is fully learnable for span 2-6 under the current synthetic setup
+- this gives us a strong clean baseline before introducing delay, visual input, or aging noise
+
+Reference:
+- `corsi_artifacts/coord_baseline_mixed_2_6/`
+- `corsi/experiments/coord_baseline_mixed_2_6.md`
+
+### 2026-04-13
+
+- Added `corsi/docs/visual_corsi_roadmap.md` as a detailed execution plan for the next research stages.
+- Broke the roadmap into visual input, delay / blank interval, heatmap output, event-structured fine time, and robosuite transfer.
+- Recorded the intended file-level changes for each stage so implementation can proceed directly from the checklist.
+- Corrected the standard Corsi-to-robosuite mapping so the reference figure's block centers, not block bottom-left corners, define the robosuite target positions.
+- Rotated the standard board coordinates onto the robosuite table plane so the `agentview` image matches the reference board orientation more closely, with human blocks 7 and 8 appearing in the lower-left region.
+- Added a visible scaled outer frame in `CorsiTableArena` matching the reference board aspect ratio `255 x 205`.
+- Added `corsi/scripts/make_robosuite_sequence_figure.py` to build a single summary image from exported robosuite reset frames and sequence keyframes, with both 0-based indices and human block ids shown.
+- Added `corsi/scripts/capture_mjviewer_camera.py` and stored the user-tuned free-camera parameters as the default online Corsi free-camera preset when `online_render_camera=None`.
+- Added a minimal robosuite visual dataset path: per-trial manifests, a batch export script, a visual dataset loader, and a visual collate function so `freecam` keyframes can flow directly into training code.
+- Added the first visual baseline stack: `VisualSeq2SeqLSTM`, `train_visual.py`, and a `visual_smoke_test.json` config so robosuite `freecam` keyframes can be trained with a CNN + LSTM + index decoding pipeline.
+- Reorganized experiment-facing assets into `corsi/experiments/coordinate_base/` and `corsi/experiments/visual_base/`, while keeping shared code in `envs / data / models / training / analysis / scripts`.
+- Moved configs, reports, and roadmap-style docs under those experiment hubs, and grouped `corsi_artifacts/` into `coordinate_base/` and `visual_base/{camera, previews, datasets, training, legacy}`.

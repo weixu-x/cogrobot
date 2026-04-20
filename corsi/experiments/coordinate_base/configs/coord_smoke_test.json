@@ -1,0 +1,19 @@
+{
+  "train_trials": 512,
+  "val_trials": 128,
+  "seq_min": 2,
+  "seq_max": 4,
+  "feature_mode": "xydxdy",
+  "batch_size": 32,
+  "epochs": 2,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0,
+  "coord_embedding_dim": 64,
+  "token_embedding_dim": 64,
+  "hidden_dim": 128,
+  "num_layers": 1,
+  "dropout": 0.0,
+  "seed": 7,
+  "device": "auto",
+  "output_dir": "corsi_artifacts/coordinate_base/coord_smoke_test"
+}

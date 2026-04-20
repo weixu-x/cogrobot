@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -39,6 +39,7 @@ class CorsiTableArena(Arena):
         # anchor
         tabletop_site_name: str = "table_top",
         table_body_name: str = "table",
+        block_xy_positions: Optional[Sequence[Tuple[float, float]]] = None,
 
     ):
         # 这些要在 super().__init__ 之前设好，因为 Arena.__init__ 会立刻调用 _postprocess_arena()
@@ -56,6 +57,7 @@ class CorsiTableArena(Arena):
         self.block_half_size = np.array(block_half_size, dtype=float)
         self.block_z_offset = float(block_z_offset)
         self.tabletop_site_name = tabletop_site_name
+        self.block_xy_positions = None if block_xy_positions is None else np.array(block_xy_positions, dtype=float)
 
         if block_rgba_list is None:
             block_rgba_list = [
@@ -106,21 +108,27 @@ class CorsiTableArena(Arena):
         # 2) block 的 z：桌面 + 半高 + offset
         z = tz + float(self.block_half_size[2]) + float(self.block_z_offset)
 
-        # 3) 在桌面范围内随机采样 9 个点，保证不重叠
-        # 你可以把这些参数写成 __init__ 参数（推荐）
-        n = self.rows * self.cols  # 你如果固定9，也可以直接 n=9
-        x_range = (-0.18, 0.18)    # 相对 table_top_world 的范围（按你桌面大小调）
-        y_range = (-0.18, 0.18)
-        margin = 0.01              # block 与 block 的额外安全间隙
+        n = self.rows * self.cols
+        if self.block_xy_positions is not None:
+            if self.block_xy_positions.shape != (n, 2):
+                raise ValueError(
+                    f"block_xy_positions must have shape ({n}, 2), got {self.block_xy_positions.shape}"
+                )
+            pts_xy = [(cx + float(dx), cy + float(dy)) for dx, dy in self.block_xy_positions]
+        else:
+            # 3) 在桌面范围内随机采样 9 个点，保证不重叠
+            x_range = (-0.18, 0.18)
+            y_range = (-0.18, 0.18)
+            margin = 0.01
 
-        pts_xy = self._sample_nonoverlap_xy(
-            n=n,
-            center_xy=(cx, cy),
-            x_range=x_range,
-            y_range=y_range,
-            min_dist=2.0 * (max(self.block_half_size[0], self.block_half_size[1]) + margin),
-            max_tries=5000,
-        )
+            pts_xy = self._sample_nonoverlap_xy(
+                n=n,
+                center_xy=(cx, cy),
+                x_range=x_range,
+                y_range=y_range,
+                min_dist=2.0 * (max(self.block_half_size[0], self.block_half_size[1]) + margin),
+                max_tries=5000,
+            )
 
         # 4) 创建 blocks（静态 body + box geom）
         self.block_names = []

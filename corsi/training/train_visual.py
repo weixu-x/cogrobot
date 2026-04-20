@@ -1,9 +1,11 @@
-"""Training entry point for the minimal coordinate-based Corsi model."""
+"""Training entry point for the minimal visual robosuite Corsi model."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
+import random
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -15,33 +17,34 @@ if str(REPO_ROOT) not in sys.path:
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from corsi.analysis.metrics import summarize_sequence_metrics
-from corsi.data import CoordinateCorsiDataset, collate_coordinate_batch
-from corsi.models.lstm_coord import CoordLSTMConfig, CoordinateSeq2SeqLSTM
+from corsi.data import RobosuiteVisualCorsiDataset, collate_visual_batch
+from corsi.models.lstm_visual import VisualLSTMConfig, VisualSeq2SeqLSTM
 from corsi.training.device import resolve_torch_device
 
 
 @dataclass
-class TrainCoordConfig:
-    train_trials: int = 20000
-    val_trials: int = 2000
-    seq_min: int = 2
-    seq_max: int = 6
-    feature_mode: str = "xydxdy"
-    batch_size: int = 64
-    epochs: int = 20
+class TrainVisualConfig:
+    dataset_root: str = "corsi_artifacts/visual_base/datasets/robosuite_visual_dataset_preview"
+    val_dataset_root: str = ""
+    camera_name: str = "freecam"
+    include_reset_frame: bool = False
+    val_ratio: float = 0.25
+    batch_size: int = 4
+    epochs: int = 8
     learning_rate: float = 1e-3
     weight_decay: float = 0.0
-    coord_embedding_dim: int = 64
+    cnn_feature_dim: int = 128
     token_embedding_dim: int = 64
     hidden_dim: int = 128
     num_layers: int = 1
     dropout: float = 0.0
+    input_image_size: int = 128
     seed: int = 7
     device: str = "auto"
-    output_dir: str = "corsi_artifacts/coordinate_base/coord_lstm"
+    output_dir: str = "corsi_artifacts/visual_base/training/visual_lstm"
 
 
 def load_config_overrides(config_path: str) -> Dict[str, object]:
@@ -52,54 +55,55 @@ def load_config_overrides(config_path: str) -> Dict[str, object]:
     return data
 
 
-def parse_args() -> TrainCoordConfig:
+def parse_args() -> TrainVisualConfig:
     bootstrap = argparse.ArgumentParser(add_help=False)
     bootstrap.add_argument("--config", type=str, default="")
     bootstrap_args, _ = bootstrap.parse_known_args()
 
-    defaults = asdict(TrainCoordConfig())
+    defaults = asdict(TrainVisualConfig())
     if bootstrap_args.config:
         defaults.update(load_config_overrides(bootstrap_args.config))
 
     parser = argparse.ArgumentParser(parents=[bootstrap])
-    parser.add_argument("--train-trials", type=int, default=defaults["train_trials"])
-    parser.add_argument("--val-trials", type=int, default=defaults["val_trials"])
-    parser.add_argument("--seq-min", type=int, default=defaults["seq_min"])
-    parser.add_argument("--seq-max", type=int, default=defaults["seq_max"])
-    parser.add_argument("--feature-mode", type=str, default=defaults["feature_mode"], choices=["xy", "xydxdy"])
+    parser.add_argument("--dataset-root", type=str, default=defaults["dataset_root"])
+    parser.add_argument("--val-dataset-root", type=str, default=defaults["val_dataset_root"])
+    parser.add_argument("--camera-name", type=str, default=defaults["camera_name"])
+    parser.add_argument("--include-reset-frame", action="store_true", default=defaults["include_reset_frame"])
+    parser.add_argument("--val-ratio", type=float, default=defaults["val_ratio"])
     parser.add_argument("--batch-size", type=int, default=defaults["batch_size"])
     parser.add_argument("--epochs", type=int, default=defaults["epochs"])
     parser.add_argument("--learning-rate", type=float, default=defaults["learning_rate"])
     parser.add_argument("--weight-decay", type=float, default=defaults["weight_decay"])
-    parser.add_argument("--coord-embedding-dim", type=int, default=defaults["coord_embedding_dim"])
+    parser.add_argument("--cnn-feature-dim", type=int, default=defaults["cnn_feature_dim"])
     parser.add_argument("--token-embedding-dim", type=int, default=defaults["token_embedding_dim"])
     parser.add_argument("--hidden-dim", type=int, default=defaults["hidden_dim"])
     parser.add_argument("--num-layers", type=int, default=defaults["num_layers"])
     parser.add_argument("--dropout", type=float, default=defaults["dropout"])
+    parser.add_argument("--input-image-size", type=int, default=defaults["input_image_size"])
     parser.add_argument("--seed", type=int, default=defaults["seed"])
     parser.add_argument("--device", type=str, default=defaults["device"], choices=["auto", "cpu", "mps", "cuda"])
     parser.add_argument("--output-dir", type=str, default=defaults["output_dir"])
 
     parsed = vars(parser.parse_args())
     parsed.pop("config", None)
-    return TrainCoordConfig(**parsed)
+    return TrainVisualConfig(**parsed)
 
 
 def set_seed(seed: int) -> None:
+    random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
 
-def build_model_config(train_config: TrainCoordConfig) -> CoordLSTMConfig:
-    input_dim = 2 if train_config.feature_mode == "xy" else 4
-    return CoordLSTMConfig(
-        input_dim=input_dim,
-        coord_embedding_dim=train_config.coord_embedding_dim,
+def build_model_config(train_config: TrainVisualConfig) -> VisualLSTMConfig:
+    return VisualLSTMConfig(
+        cnn_feature_dim=train_config.cnn_feature_dim,
         token_embedding_dim=train_config.token_embedding_dim,
         hidden_dim=train_config.hidden_dim,
         num_layers=train_config.num_layers,
         dropout=train_config.dropout,
+        input_image_size=train_config.input_image_size,
     )
 
 
@@ -108,17 +112,31 @@ def build_dataloader(dataset, batch_size: int, shuffle: bool) -> DataLoader:
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        collate_fn=collate_coordinate_batch,
+        collate_fn=collate_visual_batch,
     )
 
 
 def move_batch_to_device(batch: Dict[str, object], device: torch.device) -> Dict[str, object]:
     moved = dict(batch)
-    moved["coords_pad"] = batch["coords_pad"].to(device)
+    moved["frames_pad"] = batch["frames_pad"].to(device)
     moved["targets_pad"] = batch["targets_pad"].to(device)
     moved["lengths"] = batch["lengths"].to(device)
     moved["mask"] = batch["mask"].to(device)
     return moved
+
+
+def split_dataset(dataset, val_ratio: float, seed: int) -> tuple[Subset, Subset]:
+    dataset_size = len(dataset)
+    if dataset_size < 2:
+        raise ValueError("Need at least 2 samples to create a train/val split from one dataset root")
+    val_size = max(1, int(math.ceil(dataset_size * val_ratio)))
+    train_size = dataset_size - val_size
+    if train_size < 1:
+        train_size = dataset_size - 1
+        val_size = 1
+
+    generator = torch.Generator().manual_seed(seed)
+    return torch.utils.data.random_split(dataset, [train_size, val_size], generator=generator)
 
 
 def run_epoch(model, loader, optimizer, loss_fn, device, training: bool) -> Dict[str, float]:
@@ -129,7 +147,7 @@ def run_epoch(model, loader, optimizer, loss_fn, device, training: bool) -> Dict
     for batch in loader:
         batch = move_batch_to_device(batch, device)
         outputs = model(
-            coords=batch["coords_pad"],
+            frames=batch["frames_pad"],
             lengths=batch["lengths"],
             targets=batch["targets_pad"],
         )
@@ -161,7 +179,7 @@ def evaluate_model(model, loader, loss_fn, device) -> Dict[str, object]:
     for batch in loader:
         batch = move_batch_to_device(batch, device)
         predictions = model.greedy_decode(
-            coords=batch["coords_pad"],
+            frames=batch["frames_pad"],
             lengths=batch["lengths"],
             max_steps=batch["targets_pad"].size(1),
         )
@@ -180,7 +198,7 @@ def evaluate_model(model, loader, loss_fn, device) -> Dict[str, object]:
     return metrics
 
 
-def save_checkpoint(output_dir: Path, model, config: TrainCoordConfig, metrics: Dict[str, object]) -> None:
+def save_checkpoint(output_dir: Path, model, config: TrainVisualConfig, metrics: Dict[str, object]) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     torch.save(
         {
@@ -194,7 +212,7 @@ def save_checkpoint(output_dir: Path, model, config: TrainCoordConfig, metrics: 
         json.dump(metrics, handle, indent=2)
 
 
-def save_config(output_dir: Path, config: TrainCoordConfig) -> None:
+def save_config(output_dir: Path, config: TrainVisualConfig) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     with open(output_dir / "train_config.json", "w", encoding="utf-8") as handle:
         json.dump(asdict(config), handle, indent=2)
@@ -212,6 +230,22 @@ def save_final_summary(output_dir: Path, summary: Dict[str, object]) -> None:
         json.dump(summary, handle, indent=2)
 
 
+def build_datasets(config: TrainVisualConfig):
+    train_dataset = RobosuiteVisualCorsiDataset(
+        config.dataset_root,
+        camera_name=config.camera_name,
+        include_reset_frame=config.include_reset_frame,
+    )
+    if config.val_dataset_root:
+        val_dataset = RobosuiteVisualCorsiDataset(
+            config.val_dataset_root,
+            camera_name=config.camera_name,
+            include_reset_frame=config.include_reset_frame,
+        )
+        return train_dataset, val_dataset
+    return split_dataset(train_dataset, config.val_ratio, config.seed)
+
+
 def main() -> None:
     config = parse_args()
     set_seed(config.seed)
@@ -224,24 +258,12 @@ def main() -> None:
         json.dump(device_info, handle, indent=2)
     print(json.dumps(device_info))
 
-    train_dataset = CoordinateCorsiDataset(
-        num_trials=config.train_trials,
-        seq_len_range=(config.seq_min, config.seq_max),
-        feature_mode=config.feature_mode,
-        seed=config.seed,
-    )
-    val_dataset = CoordinateCorsiDataset(
-        num_trials=config.val_trials,
-        seq_len_range=(config.seq_min, config.seq_max),
-        feature_mode=config.feature_mode,
-        seed=config.seed + 1,
-    )
-
+    train_dataset, val_dataset = build_datasets(config)
     train_loader = build_dataloader(train_dataset, batch_size=config.batch_size, shuffle=True)
     val_loader = build_dataloader(val_dataset, batch_size=config.batch_size, shuffle=False)
 
     model_config = build_model_config(config)
-    model = CoordinateSeq2SeqLSTM(model_config).to(device)
+    model = VisualSeq2SeqLSTM(model_config).to(device)
     optimizer = torch.optim.Adam(
         model.parameters(),
         lr=config.learning_rate,

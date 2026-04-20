@@ -144,6 +144,8 @@
                         <body name="r_index_distal" pos="-0.0026138 0.032026 -0.001" quat="1 0 0 0">
                             <joint name="joint_r_index_distal" type="hinge" pos="0 0 0" axis="0 0 1" range="0 1.82" limited="true" damping="1"/>
                             <site name="site_r_index_distal" size="0.01" material="site_right_hand"/>
+                            <site name="index_tip_site" pos="-0.0013 0.0448 -0.0050" size="0.006 0.006 0.006" rgba="1 0 0 0.6" type="sphere" group="1"/>
+                            <site name="index_tip_site_cylinder" pos="-0.0013 0.0224 -0.0025" quat="-0.7071068 0 0 0.7071068" size="0.003 0.0224" rgba="1 0 0 0.2" type="cylinder" group="1"/>
                             <geom name="r_index_distal_vis" type="mesh" mesh="r_index_distal_vis" material="r_index_material" group="1" contype="0" conaffinity="0"/>
                              <geom name="r_index_distal_col" type="mesh" mesh="r_index_distal_col" mass="0.1" />
                         </body>

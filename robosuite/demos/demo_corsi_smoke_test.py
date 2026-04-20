@@ -16,7 +16,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from corsi.envs import generate_coordinate_trial
+from corsi.envs import (
+    STANDARD_CORSI_BOARD_SIZE,
+    STANDARD_CORSI_LAYOUT_IMAGE,
+    generate_coordinate_trial,
+    standard_corsi_robosuite_layout,
+)
 from corsi.envs.robosuite_corsi import (
     create_env,
     default_save_root,
@@ -69,7 +74,17 @@ def build_smoke_trial(args):
 def main():
     args = parse_args()
     trial = build_smoke_trial(args)
-    print(json.dumps(trial, indent=2))
+    print(
+        json.dumps(
+            {
+                **trial,
+                "standard_board_size": STANDARD_CORSI_BOARD_SIZE,
+                "standard_layout_image": STANDARD_CORSI_LAYOUT_IMAGE,
+                "standard_layout_robosuite": standard_corsi_robosuite_layout(),
+            },
+            indent=2,
+        )
+    )
 
     save_root = default_save_root()
     video_path = save_root / args.video_name

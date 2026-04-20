@@ -71,6 +71,8 @@ class MjRenderContext:
                 from robosuite.renderers.context.osmesa_context import OSMesaGLContext as GLContext
             elif _SYSTEM == "Linux" and _MUJOCO_GL == "egl":
                 from robosuite.renderers.context.egl_context import EGLGLContext as GLContext
+            elif _SYSTEM == "Darwin" and _MUJOCO_GL == "cgl":
+                from mujoco import GLContext
             else:
                 from robosuite.renderers.context.glfw_context import GLFWGLContext as GLContext
 
@@ -80,7 +82,10 @@ class MjRenderContext:
         self.device_id = device_id
 
         # setup GL context with defaults for now
-        self.gl_ctx = GLContext(max_width=max_width, max_height=max_height, device_id=self.device_id)
+        if _SYSTEM == "Darwin" and _MUJOCO_GL == "cgl":
+            self.gl_ctx = GLContext(max_width=max_width, max_height=max_height)
+        else:
+            self.gl_ctx = GLContext(max_width=max_width, max_height=max_height, device_id=self.device_id)
         self.gl_ctx.make_current()
 
         # Ensure the model data has been updated so that there

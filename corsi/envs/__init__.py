@@ -2,12 +2,20 @@
 
 from .sequence_generator import (
     CorsiTrial,
+    STANDARD_CORSI_BLOCK_SIZE,
+    STANDARD_CORSI_BOARD_SIZE,
+    STANDARD_CORSI_LAYOUT_IMAGE,
+    STANDARD_CORSI_ROBOSUITE_TARGET_WIDTH,
     build_coordinate_features,
     canonical_board_layout,
     compute_delta_coords,
     generate_block_sequence,
     generate_coordinate_trial,
     generate_trial_collection,
+    standard_corsi_layout,
+    standard_corsi_robosuite_board_size,
+    standard_corsi_robosuite_layout,
+    transform_layout,
 )
 
 __all__ = [
@@ -15,12 +23,20 @@ __all__ = [
     "DEFAULT_OFFLINE_CAMERAS",
     "DEFAULT_ONLINE_RENDER_CAMERA",
     "PandaDexRH",
+    "STANDARD_CORSI_BLOCK_SIZE",
+    "STANDARD_CORSI_BOARD_SIZE",
+    "STANDARD_CORSI_LAYOUT_IMAGE",
+    "STANDARD_CORSI_ROBOSUITE_TARGET_WIDTH",
     "build_coordinate_features",
     "canonical_board_layout",
     "compute_delta_coords",
     "generate_block_sequence",
     "generate_coordinate_trial",
     "generate_trial_collection",
+    "standard_corsi_layout",
+    "standard_corsi_robosuite_board_size",
+    "standard_corsi_robosuite_layout",
+    "transform_layout",
 ]
 
 
