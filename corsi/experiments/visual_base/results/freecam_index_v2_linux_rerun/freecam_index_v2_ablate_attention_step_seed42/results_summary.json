@@ -1,0 +1,285 @@
+{
+  "best_epoch": 33,
+  "best_full_seq_acc": 0.92,
+  "best_full_sequence_accuracy": 0.92,
+  "best_token_acc": 0.974425,
+  "best_token_accuracy": 0.974425,
+  "best_per_length": {
+    "2": {
+      "token_acc": 1.0,
+      "full_seq_acc": 1.0
+    },
+    "3": {
+      "token_acc": 1.0,
+      "full_seq_acc": 1.0
+    },
+    "4": {
+      "token_acc": 1.0,
+      "full_seq_acc": 1.0
+    },
+    "5": {
+      "token_acc": 0.955556,
+      "full_seq_acc": 0.833333
+    },
+    "6": {
+      "token_acc": 0.944444,
+      "full_seq_acc": 0.722222
+    }
+  },
+  "best_serial_position_acc": {
+    "2": [
+      1.0,
+      1.0
+    ],
+    "3": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "4": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "5": [
+      1.0,
+      1.0,
+      1.0,
+      0.944444,
+      0.833333
+    ],
+    "6": [
+      1.0,
+      1.0,
+      1.0,
+      0.944444,
+      0.944444,
+      0.777778
+    ]
+  },
+  "best_error_analysis": {
+    "exact_match_rate": 0.92,
+    "mean_first_error_pos": 5.125,
+    "mean_abs_displacement": 0.070667,
+    "repeat_error_rate": 0.06,
+    "mean_repeat_error_count": 0.06,
+    "transposition_like_rate": 0.02
+  },
+  "delay_mode": "none",
+  "delay_steps": 0,
+  "blank_feature_mode": "zero_feature",
+  "hidden_dim": 128,
+  "num_layers": 1,
+  "use_attention": true,
+  "attention_dim": 128,
+  "use_step_embedding": true,
+  "step_embedding_dim": 16,
+  "scheduled_sampling": false,
+  "scheduled_sampling_start": 1.0,
+  "scheduled_sampling_end": 0.5,
+  "scheduled_sampling_warmup_epochs": 40,
+  "early_stopping_patience": 20,
+  "checkpoint_path": "corsi_artifacts/visual_base/ablations/freecam_index_v2_linux_rerun/freecam_index_v2_ablate_attention_step_seed42/best_model.pt",
+  "analysis_output_dir": "corsi_artifacts/visual_base/ablations/freecam_index_v2_linux_rerun/freecam_index_v2_ablate_attention_step_seed42/analysis",
+  "best_metrics": {
+    "token_accuracy": 0.974425,
+    "full_sequence_accuracy": 0.92,
+    "per_length": {
+      "2": {
+        "token_acc": 1.0,
+        "full_seq_acc": 1.0
+      },
+      "3": {
+        "token_acc": 1.0,
+        "full_seq_acc": 1.0
+      },
+      "4": {
+        "token_acc": 1.0,
+        "full_seq_acc": 1.0
+      },
+      "5": {
+        "token_acc": 0.955556,
+        "full_seq_acc": 0.833333
+      },
+      "6": {
+        "token_acc": 0.944444,
+        "full_seq_acc": 0.722222
+      }
+    },
+    "serial_position_acc": {
+      "2": [
+        1.0,
+        1.0
+      ],
+      "3": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "4": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "5": [
+        1.0,
+        1.0,
+        1.0,
+        0.944444,
+        0.833333
+      ],
+      "6": [
+        1.0,
+        1.0,
+        1.0,
+        0.944444,
+        0.944444,
+        0.777778
+      ]
+    },
+    "serial_position_accuracy_by_length": {
+      "2": [
+        1.0,
+        1.0
+      ],
+      "3": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "4": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "5": [
+        1.0,
+        1.0,
+        1.0,
+        0.944444,
+        0.833333
+      ],
+      "6": [
+        1.0,
+        1.0,
+        1.0,
+        0.944444,
+        0.944444,
+        0.777778
+      ]
+    },
+    "estimated_span": 6,
+    "error_analysis": {
+      "exact_match_rate": 0.92,
+      "mean_first_error_pos": 5.125,
+      "mean_abs_displacement": 0.070667,
+      "repeat_error_rate": 0.06,
+      "mean_repeat_error_count": 0.06,
+      "transposition_like_rate": 0.02
+    },
+    "error_analysis_by_length": {
+      "2": {
+        "exact_match_rate": 1.0,
+        "mean_first_error_pos": null,
+        "mean_abs_displacement": 0.0,
+        "repeat_error_rate": 0.0,
+        "mean_repeat_error_count": 0.0,
+        "transposition_like_rate": 0.0
+      },
+      "3": {
+        "exact_match_rate": 1.0,
+        "mean_first_error_pos": null,
+        "mean_abs_displacement": 0.0,
+        "repeat_error_rate": 0.0,
+        "mean_repeat_error_count": 0.0,
+        "transposition_like_rate": 0.0
+      },
+      "4": {
+        "exact_match_rate": 1.0,
+        "mean_first_error_pos": null,
+        "mean_abs_displacement": 0.0,
+        "repeat_error_rate": 0.0,
+        "mean_repeat_error_count": 0.0,
+        "transposition_like_rate": 0.0
+      },
+      "5": {
+        "exact_match_rate": 0.833333,
+        "mean_first_error_pos": 4.666667,
+        "mean_abs_displacement": 0.133333,
+        "repeat_error_rate": 0.111111,
+        "mean_repeat_error_count": 0.111111,
+        "transposition_like_rate": 0.055556
+      },
+      "6": {
+        "exact_match_rate": 0.722222,
+        "mean_first_error_pos": 5.4,
+        "mean_abs_displacement": 0.259259,
+        "repeat_error_rate": 0.222222,
+        "mean_repeat_error_count": 0.222222,
+        "transposition_like_rate": 0.055556
+      }
+    },
+    "error_breakdown": {
+      "correct": 0.92,
+      "order_error": 0.02,
+      "wrong_block": 0.06
+    },
+    "error_breakdown_by_length": {
+      "2": {
+        "correct": 1.0
+      },
+      "3": {
+        "correct": 1.0
+      },
+      "4": {
+        "correct": 1.0
+      },
+      "5": {
+        "correct": 0.833333,
+        "order_error": 0.055556,
+        "wrong_block": 0.111111
+      },
+      "6": {
+        "correct": 0.722222,
+        "order_error": 0.055556,
+        "wrong_block": 0.222222
+      }
+    },
+    "mean_first_error_pos_by_length": {
+      "2": null,
+      "3": null,
+      "4": null,
+      "5": 4.666667,
+      "6": 5.4
+    },
+    "transposition_like_rate_by_length": {
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.055556,
+      "6": 0.055556
+    },
+    "repeat_error_rate_by_length": {
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.111111,
+      "6": 0.222222
+    },
+    "accuracy_by_length": {
+      "2": 1.0,
+      "3": 1.0,
+      "4": 1.0,
+      "5": 0.833333,
+      "6": 0.722222
+    },
+    "loss": 0.07743,
+    "delay_mode": "none",
+    "delay_steps": 0,
+    "blank_feature_mode": "zero_feature",
+    "frame_length_mean": 3.91
+  }
+}

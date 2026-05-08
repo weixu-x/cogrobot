@@ -1,0 +1,9 @@
+{
+  "requested_device": "cuda",
+  "resolved_device": "cuda",
+  "availability": {
+    "cuda": true,
+    "mps": false,
+    "cpu": true
+  }
+}

@@ -1,0 +1,10 @@
+| experiment_name | seed | use_attention | use_step_embedding | use_scheduled_sampling | best_epoch | best_full_sequence_accuracy | best_token_accuracy | estimated_span | length_2_acc | length_3_acc | length_4_acc | length_5_acc | length_6_acc | order_error | wrong_block | repeat_error | transposition_like_rate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| freecam_index_v2_ablate_attention_only_seed42 | 42 | True | False | False | 55 | 0.99 | 0.997442 | 6 | 1.0 | 1.0 | 1.0 | 1.0 | 0.944444 | 0.0 | 0.01 | 0.01 | 0.0 |
+| freecam_index_v2_ablate_attention_ss_seed42 | 42 | True | False | True | 34 | 0.98 | 0.987212 | 6 | 1.0 | 1.0 | 1.0 | 1.0 | 0.888889 | 0.0 | 0.02 | 0.02 | 0.0 |
+| freecam_index_v2_ablate_attention_step_seed42 | 42 | True | True | False | 33 | 0.92 | 0.974425 | 6 | 1.0 | 1.0 | 1.0 | 0.833333 | 0.722222 | 0.02 | 0.06 | 0.06 | 0.055556 |
+| freecam_index_v2_ablate_attention_step_ss_seed42 | 42 | True | True | True | 27 | 0.99 | 0.994885 | 6 | 1.0 | 1.0 | 1.0 | 1.0 | 0.944444 | 0.01 | 0.0 | 0.01 | 0.055556 |
+| freecam_index_v2_ablate_baseline_lstm_seed42 | 42 | False | False | False | 51 | 0.57 | 0.751918 | 4 | 1.0 | 0.888889 | 0.631579 | 0.166667 | 0.0 | 0.04 | 0.38 | 0.21 | 0.0 |
+| freecam_index_v2_ablate_ss_only_seed42 | 42 | False | False | True | 52 | 0.63 | 0.713555 | 4 | 1.0 | 0.925926 | 0.736842 | 0.222222 | 0.111111 | 0.11 | 0.25 | 0.22 | 0.277778 |
+| freecam_index_v2_ablate_step_only_seed42 | 42 | False | True | False | 58 | 0.68 | 0.792839 | 4 | 1.0 | 0.962963 | 0.842105 | 0.222222 | 0.222222 | 0.16 | 0.16 | 0.14 | 0.277778 |
+| freecam_index_v2_ablate_step_ss_seed42 | 42 | False | True | True | 52 | 0.69 | 0.808184 | 4 | 1.0 | 0.962963 | 0.736842 | 0.333333 | 0.277778 | 0.14 | 0.17 | 0.13 | 0.333333 |
