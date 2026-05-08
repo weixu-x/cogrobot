@@ -31,3 +31,11 @@ python corsi/experiments/visual_base/scripts/train.py \
 - val dataset root: `corsi_artifacts/visual_base/datasets/freecam_index_v1_val`
 - config: `corsi/experiments/visual_base/configs/freecam_index_v1_baseline.json`
 - report: `corsi/experiments/visual_base/reports/freecam_index_v1_baseline.md`
+
+## Scale-Up Export
+
+For larger visual datasets, prefer:
+
+- sharded export across multiple processes
+- `reset + rollout_keyframes + manifest.json`
+- no rollout videos unless debugging needs them

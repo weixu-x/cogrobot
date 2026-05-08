@@ -86,6 +86,14 @@ Reason:
 
 ## Change Log
 
+### 2026-04-20
+
+- Added a faster visual dataset scale-up path for the robosuite freecam baseline.
+- `corsi/scripts/export_robosuite_visual_dataset.py` can now shard sequences across multiple exporters.
+- `corsi/envs/robosuite_corsi.py` can now skip rollout video writing entirely during dataset export.
+- Added `corsi/scripts/merge_robosuite_visual_dataset_shards.py` to combine shard manifests into one trainable dataset root.
+- Added `corsi/experiments/visual_base/scripts/merge_dataset_shards.py` as the experiment-level entrypoint.
+
 ### 2026-03-24
 
 - Created the standalone `corsi/` project area for cognitive-task code.

@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -29,6 +30,8 @@ def parse_args():
     parser.add_argument("--num-trials", type=int, default=8)
     parser.add_argument("--seq-len-range", type=str, default="2,4")
     parser.add_argument("--sequences-json", type=str, default="")
+    parser.add_argument("--shard-index", type=int, default=0)
+    parser.add_argument("--num-shards", type=int, default=1)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--control-freq", type=int, default=20)
     parser.add_argument("--fps", type=int, default=20)
@@ -36,6 +39,7 @@ def parse_args():
     parser.add_argument("--dwell-steps", type=int, default=24)
     parser.add_argument("--arrival-threshold", type=float, default=0.01)
     parser.add_argument("--target-height", type=float, default=0.04)
+    parser.add_argument("--write-rollout-videos", action="store_true")
     parser.add_argument("--keep-rollout-frames", action="store_true")
     parser.add_argument("--keep-rollout-videos", action="store_true")
     return parser.parse_args()
@@ -78,6 +82,66 @@ def build_keyframe_paths(sample_dir: Path, camera_names: list[str], sequence: li
     return keyframe_paths
 
 
+def shard_sequences(
+    sequences: list[list[int]],
+    *,
+    shard_index: int,
+    num_shards: int,
+) -> list[list[int]]:
+    if num_shards < 1:
+        raise ValueError("--num-shards must be at least 1")
+    if shard_index < 0 or shard_index >= num_shards:
+        raise ValueError("--shard-index must be in [0, num_shards)")
+    if num_shards == 1:
+        return sequences
+    return [sequence for index, sequence in enumerate(sequences) if index % num_shards == shard_index]
+
+
+def dataset_manifest_payload(
+    *,
+    output_dir: Path,
+    dataset_name: str,
+    split_name: str,
+    camera_names: list[str],
+    seq_len_range: tuple[int, int],
+    args: argparse.Namespace,
+    dataset_samples: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "dataset_name": dataset_name,
+        "split_name": split_name,
+        "camera_names": camera_names,
+        "num_samples": len(dataset_samples),
+        "samples_dir": str(output_dir / "samples"),
+        "sequence_length_range": {
+            "min": seq_len_range[0],
+            "max": seq_len_range[1],
+        },
+        "sample_structure": [
+            "reset",
+            "rollout_keyframes",
+            "manifest.json",
+        ],
+        "shard_info": {
+            "shard_index": int(args.shard_index),
+            "num_shards": int(args.num_shards),
+        },
+        "export_params": {
+            "control_freq": args.control_freq,
+            "fps": args.fps,
+            "speed_gain": args.speed_gain,
+            "dwell_steps": args.dwell_steps,
+            "arrival_threshold": args.arrival_threshold,
+            "target_height": args.target_height,
+            "write_rollout_videos": bool(args.write_rollout_videos),
+            "keep_rollout_frames": bool(args.keep_rollout_frames),
+            "keep_rollout_videos": bool(args.keep_rollout_videos),
+            "seed": args.seed,
+        },
+        "samples": dataset_samples,
+    }
+
+
 def main() -> None:
     args = parse_args()
     camera_names = parse_csv_list(args.cameras)
@@ -97,6 +161,11 @@ def main() -> None:
         num_trials=args.num_trials,
         seq_len_range=seq_len_range,
         seed=args.seed,
+    )
+    sequences = shard_sequences(
+        sequences,
+        shard_index=args.shard_index,
+        num_shards=args.num_shards,
     )
 
     env = create_env(
@@ -123,6 +192,7 @@ def main() -> None:
                 video_path=sample_dir / "rollout.mp4",
                 frames_dir=rollout_frames_dir,
                 fps=args.fps,
+                write_videos=args.write_rollout_videos,
                 keep_frames=args.keep_rollout_frames,
                 save_keyframes=True,
                 keyframes_dir=keyframes_dir,
@@ -133,7 +203,7 @@ def main() -> None:
                 target_height=args.target_height,
             )
 
-            if not args.keep_rollout_videos:
+            if args.write_rollout_videos and not args.keep_rollout_videos:
                 for camera_name in camera_names:
                     camera_video_path = sample_dir / f"rollout_{camera_name}.mp4"
                     if camera_video_path.exists():
@@ -175,34 +245,15 @@ def main() -> None:
     finally:
         env.close()
 
-    dataset_manifest = {
-        "dataset_name": dataset_name,
-        "split_name": split_name,
-        "camera_names": camera_names,
-        "num_samples": len(dataset_samples),
-        "samples_dir": str(samples_dir),
-        "sequence_length_range": {
-            "min": seq_len_range[0],
-            "max": seq_len_range[1],
-        },
-        "sample_structure": [
-            "reset",
-            "rollout_keyframes",
-            "manifest.json",
-        ],
-        "export_params": {
-            "control_freq": args.control_freq,
-            "fps": args.fps,
-            "speed_gain": args.speed_gain,
-            "dwell_steps": args.dwell_steps,
-            "arrival_threshold": args.arrival_threshold,
-            "target_height": args.target_height,
-            "keep_rollout_frames": bool(args.keep_rollout_frames),
-            "keep_rollout_videos": bool(args.keep_rollout_videos),
-            "seed": args.seed,
-        },
-        "samples": dataset_samples,
-    }
+    dataset_manifest = dataset_manifest_payload(
+        output_dir=output_dir,
+        dataset_name=dataset_name,
+        split_name=split_name,
+        camera_names=camera_names,
+        seq_len_range=seq_len_range,
+        args=args,
+        dataset_samples=dataset_samples,
+    )
     dataset_manifest_path = output_dir / "dataset_manifest.json"
     dataset_manifest_path.write_text(json.dumps(dataset_manifest, indent=2), encoding="utf-8")
     print(json.dumps(dataset_manifest, indent=2))

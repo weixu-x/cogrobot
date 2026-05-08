@@ -1,14 +1,14 @@
-"""Minimal visual encoder-decoder LSTM for robosuite Corsi sequence recall."""
+"""Visual encoder-decoder LSTM with optional retention delay manipulation."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
-from torch.nn.utils.rnn import pack_padded_sequence
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 @dataclass
@@ -22,6 +22,16 @@ class VisualLSTMConfig:
     num_blocks: int = 9
     target_pad_value: int = -100
     input_image_size: int = 128
+    use_attention: bool = False
+    attention_dim: int = 128
+    use_step_embedding: bool = False
+    max_decode_steps: int = 6
+    step_embedding_dim: int = 16
+    delay_mode: str = "none"
+    delay_steps: int = 0
+    blank_feature_mode: str = "zero_feature"
+    return_hidden_traces: bool = False
+    return_error_analysis: bool = False
 
     @property
     def start_token_id(self) -> int:
@@ -50,15 +60,18 @@ class FrameCNNEncoder(nn.Module):
 
 
 class VisualSeq2SeqLSTM(nn.Module):
-    """CNN encoder + LSTM decoder that predicts the full Corsi block sequence."""
+    """CNN encoder + encoder-LSTM + decoder-LSTM sequence recall baseline."""
 
     def __init__(self, config: VisualLSTMConfig) -> None:
         super().__init__()
         self.config = config
 
         rnn_dropout = config.dropout if config.num_layers > 1 else 0.0
+        decoder_input_dim = config.token_embedding_dim + (
+            config.step_embedding_dim if config.use_step_embedding else 0
+        )
         self.frame_encoder = FrameCNNEncoder(config.input_channels, config.cnn_feature_dim)
-        self.encoder = nn.LSTM(
+        self.encoder_lstm = nn.LSTM(
             input_size=config.cnn_feature_dim,
             hidden_size=config.hidden_dim,
             num_layers=config.num_layers,
@@ -66,16 +79,35 @@ class VisualSeq2SeqLSTM(nn.Module):
             batch_first=True,
         )
         self.token_embedding = nn.Embedding(config.num_blocks + 1, config.token_embedding_dim)
-        self.decoder = nn.LSTM(
-            input_size=config.token_embedding_dim,
+        self.step_embedding = (
+            nn.Embedding(config.max_decode_steps, config.step_embedding_dim)
+            if config.use_step_embedding
+            else None
+        )
+        self.decoder_lstm = nn.LSTM(
+            input_size=decoder_input_dim,
             hidden_size=config.hidden_dim,
             num_layers=config.num_layers,
             dropout=rnn_dropout,
             batch_first=True,
         )
+        if config.use_attention:
+            self.attention_encoder_proj = nn.Linear(config.hidden_dim, config.attention_dim, bias=False)
+            self.attention_decoder_proj = nn.Linear(config.hidden_dim, config.attention_dim, bias=False)
+            self.attention_score = nn.Linear(config.attention_dim, 1, bias=False)
+            self.attention_fusion = nn.Linear(config.hidden_dim * 2, config.hidden_dim)
+        else:
+            self.attention_encoder_proj = None
+            self.attention_decoder_proj = None
+            self.attention_score = None
+            self.attention_fusion = None
         self.output_head = nn.Linear(config.hidden_dim, config.num_blocks)
 
-    def _encode_frames(self, frames: Tensor) -> Tensor:
+        # Backward-compatible aliases for any external code that still uses the old names.
+        self.encoder = self.encoder_lstm
+        self.decoder = self.decoder_lstm
+
+    def _encode_frames_to_features(self, frames: Tensor) -> Tensor:
         batch_size, seq_len, channels, height, width = frames.shape
         flat_frames = frames.reshape(batch_size * seq_len, channels, height, width)
         if height != self.config.input_image_size or width != self.config.input_image_size:
@@ -88,16 +120,154 @@ class VisualSeq2SeqLSTM(nn.Module):
         encoded = self.frame_encoder(flat_frames)
         return encoded.reshape(batch_size, seq_len, -1)
 
-    def encode(self, frames: Tensor, lengths: Tensor) -> tuple[Tensor, Tensor]:
-        embedded = self._encode_frames(frames)
+    @staticmethod
+    def _top_hidden(state: tuple[Tensor, Tensor]) -> Tensor:
+        return state[0][-1]
+
+    @staticmethod
+    def _empty_trace(batch_size: int, hidden_dim: int, device: torch.device) -> Tensor:
+        return torch.empty((batch_size, 0, hidden_dim), device=device)
+
+    def _resolve_delay_args(
+        self,
+        delay_mode: Optional[str],
+        delay_steps: Optional[int],
+        blank_feature_mode: Optional[str],
+        return_hidden_traces: Optional[bool],
+    ) -> tuple[str, int, str, bool]:
+        resolved_mode = self.config.delay_mode if delay_mode is None else delay_mode
+        resolved_steps = self.config.delay_steps if delay_steps is None else int(delay_steps)
+        resolved_blank_mode = (
+            self.config.blank_feature_mode if blank_feature_mode is None else blank_feature_mode
+        )
+        resolved_return_traces = (
+            self.config.return_hidden_traces
+            if return_hidden_traces is None
+            else bool(return_hidden_traces)
+        )
+        if resolved_mode not in {"none", "hold_state", "encoder_blanks"}:
+            raise ValueError(f"Unsupported delay_mode: {resolved_mode}")
+        if resolved_blank_mode not in {"zero_feature", "zero_image"}:
+            raise ValueError(f"Unsupported blank_feature_mode: {resolved_blank_mode}")
+        if resolved_steps < 0:
+            raise ValueError("delay_steps must be >= 0")
+        return resolved_mode, resolved_steps, resolved_blank_mode, resolved_return_traces
+
+    def encode_frames(
+        self,
+        frames: Tensor,
+        frame_lengths: Tensor,
+        return_traces: bool = False,
+    ) -> tuple[Tensor, tuple[Tensor, Tensor], Dict[str, Tensor]]:
+        """
+        Args:
+            frames: `[B, T, C, H, W]`
+            frame_lengths: `[B]`
+        Returns:
+            encoder_outputs: `[B, T, H]` padded hidden states from the top encoder layer
+            encoder_final_state: `(h, c)`
+            traces: lightweight encoder trace payload
+        """
+
+        embedded = self._encode_frames_to_features(frames)
         packed = pack_padded_sequence(
             embedded,
-            lengths.cpu(),
+            frame_lengths.cpu(),
             batch_first=True,
             enforce_sorted=False,
         )
-        _, (hidden, cell) = self.encoder(packed)
-        return hidden, cell
+        packed_outputs, final_state = self.encoder_lstm(packed)
+        encoder_outputs, _ = pad_packed_sequence(packed_outputs, batch_first=True)
+
+        traces: Dict[str, Tensor] = {
+            "encoder_last_hidden": self._top_hidden(final_state),
+        }
+        if return_traces:
+            traces["encoder_hidden_trace"] = encoder_outputs
+        return encoder_outputs, final_state, traces
+
+    def _blank_features(
+        self,
+        batch_size: int,
+        device: torch.device,
+        blank_feature_mode: str,
+    ) -> tuple[Tensor, Dict[str, float]]:
+        if blank_feature_mode == "zero_feature":
+            blank_feat = torch.zeros(batch_size, self.config.cnn_feature_dim, device=device)
+        elif blank_feature_mode == "zero_image":
+            blank_images = torch.zeros(
+                (
+                    batch_size,
+                    self.config.input_channels,
+                    self.config.input_image_size,
+                    self.config.input_image_size,
+                ),
+                device=device,
+            )
+            blank_feat = self.frame_encoder(blank_images)
+        else:
+            raise ValueError(f"Unsupported blank_feature_mode: {blank_feature_mode}")
+
+        blank_stats = {
+            "blank_feature_l2_norm": float(blank_feat.norm(p=2, dim=1).mean().item()),
+            "blank_feature_mean_abs": float(blank_feat.abs().mean().item()),
+        }
+        return blank_feat, blank_stats
+
+    def apply_delay(
+        self,
+        encoder_state: tuple[Tensor, Tensor],
+        batch_size: int,
+        device: torch.device,
+        delay_steps: int,
+        delay_mode: str,
+        *,
+        blank_feature_mode: str = "zero_feature",
+        return_traces: bool = False,
+    ) -> tuple[tuple[Tensor, Tensor], Dict[str, Any]]:
+        """
+        Args:
+            encoder_state: encoder final `(h, c)` after observation frames
+        Returns:
+            delayed_encoder_state and optional trace metadata
+        """
+
+        trace_payload: Dict[str, Any] = {
+            "delay_mode": delay_mode,
+            "delay_steps": int(delay_steps),
+            "blank_feature_mode": blank_feature_mode,
+        }
+
+        if delay_mode in {"none", "hold_state"} or delay_steps == 0:
+            if return_traces:
+                trace_payload["delay_hidden_trace"] = self._empty_trace(
+                    batch_size=batch_size,
+                    hidden_dim=self.config.hidden_dim,
+                    device=device,
+                )
+            trace_payload["recall_start_hidden"] = self._top_hidden(encoder_state)
+            trace_payload["blank_feature_l2_norm"] = 0.0
+            trace_payload["blank_feature_mean_abs"] = 0.0
+            return encoder_state, trace_payload
+
+        blank_feat, blank_stats = self._blank_features(batch_size, device, blank_feature_mode)
+        state = encoder_state
+        delay_hidden_trace = []
+
+        for _ in range(delay_steps):
+            _, state = self.encoder_lstm(blank_feat.unsqueeze(1), state)
+            if return_traces:
+                delay_hidden_trace.append(self._top_hidden(state))
+
+        trace_payload.update(blank_stats)
+        trace_payload["recall_start_hidden"] = self._top_hidden(state)
+        if return_traces:
+            trace_payload["delay_hidden_trace"] = (
+                torch.stack(delay_hidden_trace, dim=1)
+                if delay_hidden_trace
+                else self._empty_trace(batch_size, self.config.hidden_dim, device)
+            )
+        return state, trace_payload
 
     def _teacher_forcing_inputs(self, targets: Tensor) -> Tensor:
         batch_size, seq_len = targets.shape
@@ -117,34 +287,316 @@ class VisualSeq2SeqLSTM(nn.Module):
             decoder_inputs[:, 1:] = previous_targets
         return decoder_inputs
 
-    def forward(self, frames: Tensor, lengths: Tensor, targets: Tensor) -> Dict[str, Tensor]:
-        hidden, cell = self.encode(frames, lengths)
-        decoder_inputs = self._teacher_forcing_inputs(targets)
-        decoder_emb = self.token_embedding(decoder_inputs)
-        decoder_outputs, _ = self.decoder(decoder_emb, (hidden, cell))
-        logits = self.output_head(decoder_outputs)
-        return {"logits": logits}
+    def _decode_input_embedding(self, input_tokens: Tensor, step_index: int) -> Tensor:
+        token_emb = self.token_embedding(input_tokens)
+        if not self.config.use_step_embedding or self.step_embedding is None:
+            return token_emb
+        clamped_step = min(step_index, self.config.max_decode_steps - 1)
+        step_ids = torch.full_like(input_tokens, fill_value=clamped_step)
+        step_emb = self.step_embedding(step_ids)
+        return torch.cat([token_emb, step_emb], dim=-1)
 
-    @torch.no_grad()
-    def greedy_decode(self, frames: Tensor, lengths: Tensor, max_steps: Optional[int] = None) -> Tensor:
-        hidden, cell = self.encode(frames, lengths)
-        batch_size = frames.size(0)
-        decode_steps = max_steps if max_steps is not None else int(lengths.max().item())
+    def _encoder_mask(self, encoder_outputs: Tensor, frame_lengths: Tensor) -> Tensor:
+        max_time = encoder_outputs.size(1)
+        positions = torch.arange(max_time, device=frame_lengths.device).unsqueeze(0)
+        return positions < frame_lengths.unsqueeze(1)
 
+    def _apply_attention(
+        self,
+        step_hidden: Tensor,
+        encoder_outputs: Tensor,
+        encoder_mask: Tensor,
+    ) -> tuple[Tensor, Tensor]:
+        if (
+            not self.config.use_attention
+            or self.attention_encoder_proj is None
+            or self.attention_decoder_proj is None
+            or self.attention_score is None
+            or self.attention_fusion is None
+        ):
+            batch_size, time_steps, _ = encoder_outputs.shape
+            empty_weights = torch.zeros(batch_size, time_steps, device=step_hidden.device)
+            return step_hidden, empty_weights
+
+        encoder_proj = self.attention_encoder_proj(encoder_outputs)
+        decoder_proj = self.attention_decoder_proj(step_hidden).unsqueeze(1)
+        energy = torch.tanh(encoder_proj + decoder_proj)
+        scores = self.attention_score(energy).squeeze(-1)
+        scores = scores.masked_fill(~encoder_mask, torch.finfo(scores.dtype).min)
+        attention_weights = torch.softmax(scores, dim=-1)
+        context = torch.bmm(attention_weights.unsqueeze(1), encoder_outputs).squeeze(1)
+        fused_hidden = torch.tanh(self.attention_fusion(torch.cat([step_hidden, context], dim=-1)))
+        return fused_hidden, attention_weights
+
+    def _decode_step(
+        self,
+        *,
+        input_tokens: Tensor,
+        step_index: int,
+        state: tuple[Tensor, Tensor],
+        encoder_outputs: Tensor,
+        encoder_mask: Tensor,
+    ) -> tuple[Tensor, Tensor, tuple[Tensor, Tensor], Tensor]:
+        decoder_inputs = self._decode_input_embedding(input_tokens.unsqueeze(1), step_index)
+        decoder_output, next_state = self.decoder_lstm(decoder_inputs, state)
+        step_hidden = decoder_output[:, -1, :]
+        fused_hidden, attention_weights = self._apply_attention(
+            step_hidden,
+            encoder_outputs,
+            encoder_mask,
+        )
+        step_logits = self.output_head(fused_hidden)
+        return step_logits, fused_hidden, next_state, attention_weights
+
+    def decode_autoregressive(
+        self,
+        encoder_outputs: Tensor,
+        frame_lengths: Tensor,
+        encoder_state: tuple[Tensor, Tensor],
+        targets: Optional[Tensor] = None,
+        target_lengths: Optional[Tensor] = None,
+        *,
+        max_steps: Optional[int] = None,
+        return_traces: bool = False,
+        teacher_forcing_ratio: float = 1.0,
+    ) -> Dict[str, Tensor]:
+        """
+        Keeps the current encoder-decoder LSTM recall logic.
+        Teacher forcing is used when `targets` are provided; otherwise greedy decoding is used.
+        """
+
+        if targets is not None and (
+            not self.config.use_attention
+            and not self.config.use_step_embedding
+            and teacher_forcing_ratio >= 1.0
+        ):
+            decoder_inputs = self._teacher_forcing_inputs(targets)
+            decoder_emb = self.token_embedding(decoder_inputs)
+            decoder_outputs, final_state = self.decoder_lstm(decoder_emb, encoder_state)
+            payload: Dict[str, Tensor] = {
+                "logits": self.output_head(decoder_outputs),
+                "decoder_final_hidden": self._top_hidden(final_state),
+            }
+            if return_traces:
+                payload["decoder_hidden_trace"] = decoder_outputs
+            return payload
+
+        if max_steps is None:
+            if target_lengths is not None:
+                max_steps = int(target_lengths.max().item())
+            else:
+                raise ValueError("decode_autoregressive requires target_lengths or max_steps for greedy decoding")
+
+        hidden, cell = encoder_state
+        batch_size = hidden.size(1)
+        encoder_mask = self._encoder_mask(encoder_outputs, frame_lengths)
         current_tokens = torch.full(
-            (batch_size, 1),
+            (batch_size,),
             fill_value=self.config.start_token_id,
             dtype=torch.long,
-            device=frames.device,
+            device=hidden.device,
         )
         predictions = []
+        logits_steps = []
+        decoder_hidden_trace = []
+        attention_trace = []
 
-        for _ in range(decode_steps):
-            decoder_emb = self.token_embedding(current_tokens[:, -1:])
-            decoder_output, (hidden, cell) = self.decoder(decoder_emb, (hidden, cell))
-            step_logits = self.output_head(decoder_output[:, -1, :])
+        if teacher_forcing_ratio < 0.0 or teacher_forcing_ratio > 1.0:
+            raise ValueError("teacher_forcing_ratio must be in [0, 1]")
+
+        previous_targets = None
+        if targets is not None and targets.size(1) > 1:
+            previous_targets = targets[:, :-1].clone()
+            previous_targets = torch.where(
+                previous_targets == self.config.target_pad_value,
+                torch.full_like(previous_targets, self.config.start_token_id),
+                previous_targets,
+            )
+
+        for step_index in range(max_steps):
+            step_logits, step_hidden, (hidden, cell), attention_weights = self._decode_step(
+                input_tokens=current_tokens,
+                step_index=step_index,
+                state=(hidden, cell),
+                encoder_outputs=encoder_outputs,
+                encoder_mask=encoder_mask,
+            )
             next_tokens = step_logits.argmax(dim=-1)
             predictions.append(next_tokens)
-            current_tokens = torch.cat([current_tokens, next_tokens.unsqueeze(1)], dim=1)
+            logits_steps.append(step_logits)
+            if return_traces:
+                decoder_hidden_trace.append(step_hidden)
+                attention_trace.append(attention_weights)
+            if targets is not None and step_index + 1 < max_steps:
+                if teacher_forcing_ratio >= 1.0:
+                    current_tokens = previous_targets[:, step_index]
+                elif teacher_forcing_ratio <= 0.0:
+                    current_tokens = next_tokens
+                else:
+                    teacher_mask = (
+                        torch.rand(batch_size, device=hidden.device) < teacher_forcing_ratio
+                    )
+                    gold_tokens = previous_targets[:, step_index]
+                    current_tokens = torch.where(teacher_mask, gold_tokens, next_tokens)
+            else:
+                current_tokens = next_tokens
 
-        return torch.stack(predictions, dim=1)
+        payload = {
+            "predictions": torch.stack(predictions, dim=1),
+            "logits": torch.stack(logits_steps, dim=1),
+            "decoder_final_hidden": hidden[-1],
+        }
+        if return_traces:
+            payload["decoder_hidden_trace"] = torch.stack(decoder_hidden_trace, dim=1)
+            payload["attention_trace"] = torch.stack(attention_trace, dim=1)
+        return payload
+
+    def _compose_hidden_traces(
+        self,
+        *,
+        encoder_traces: Dict[str, Tensor],
+        delay_traces: Dict[str, Any],
+        decoder_outputs: Dict[str, Tensor],
+        frame_lengths: Tensor,
+        target_lengths: Optional[Tensor],
+    ) -> Dict[str, Any]:
+        metadata = {
+            "delay_mode": delay_traces["delay_mode"],
+            "delay_steps": delay_traces["delay_steps"],
+            "blank_feature_mode": delay_traces["blank_feature_mode"],
+            "frame_lengths": frame_lengths.detach().clone(),
+            "target_lengths": None if target_lengths is None else target_lengths.detach().clone(),
+            "encoder_time_lengths": frame_lengths.detach().clone()
+            + (
+                delay_traces["delay_steps"]
+                if delay_traces["delay_mode"] == "encoder_blanks"
+                else 0
+            ),
+            "blank_feature_l2_norm": delay_traces["blank_feature_l2_norm"],
+            "blank_feature_mean_abs": delay_traces["blank_feature_mean_abs"],
+        }
+        hidden_traces: Dict[str, Any] = {
+            "encoder_last_hidden": encoder_traces["encoder_last_hidden"],
+            "delay_hidden_trace": delay_traces.get("delay_hidden_trace"),
+            "decoder_hidden_trace": decoder_outputs.get("decoder_hidden_trace"),
+            "attention_trace": decoder_outputs.get("attention_trace"),
+            "recall_start_hidden": delay_traces["recall_start_hidden"],
+            "metadata": metadata,
+        }
+        if "encoder_hidden_trace" in encoder_traces:
+            hidden_traces["encoder_hidden_trace"] = encoder_traces["encoder_hidden_trace"]
+        return hidden_traces
+
+    def forward(
+        self,
+        frames: Tensor,
+        frame_lengths: Tensor,
+        targets: Optional[Tensor] = None,
+        target_lengths: Optional[Tensor] = None,
+        delay_mode: Optional[str] = "none",
+        delay_steps: Optional[int] = 0,
+        return_hidden_traces: bool = False,
+        blank_feature_mode: Optional[str] = None,
+        teacher_forcing_ratio: float = 1.0,
+    ) -> Dict[str, Any]:
+        resolved_mode, resolved_steps, resolved_blank_mode, resolved_return_traces = self._resolve_delay_args(
+            delay_mode=delay_mode,
+            delay_steps=delay_steps,
+            blank_feature_mode=blank_feature_mode,
+            return_hidden_traces=return_hidden_traces,
+        )
+        encoder_outputs, encoder_state, encoder_traces = self.encode_frames(
+            frames,
+            frame_lengths,
+            return_traces=resolved_return_traces,
+        )
+        delayed_state, delay_traces = self.apply_delay(
+            encoder_state=encoder_state,
+            batch_size=frames.size(0),
+            device=frames.device,
+            delay_steps=resolved_steps,
+            delay_mode=resolved_mode,
+            blank_feature_mode=resolved_blank_mode,
+            return_traces=resolved_return_traces,
+        )
+        decoder_outputs = self.decode_autoregressive(
+            encoder_outputs,
+            frame_lengths,
+            delayed_state,
+            targets=targets,
+            target_lengths=target_lengths,
+            return_traces=resolved_return_traces,
+            teacher_forcing_ratio=teacher_forcing_ratio,
+        )
+        payload: Dict[str, Any] = {"logits": decoder_outputs["logits"]}
+        if resolved_return_traces:
+            payload["hidden_traces"] = self._compose_hidden_traces(
+                encoder_traces=encoder_traces,
+                delay_traces=delay_traces,
+                decoder_outputs=decoder_outputs,
+                frame_lengths=frame_lengths,
+                target_lengths=target_lengths,
+            )
+        return payload
+
+    @torch.no_grad()
+    def greedy_decode(
+        self,
+        frames: Tensor,
+        frame_lengths: Tensor,
+        max_steps: Optional[int] = None,
+        *,
+        target_lengths: Optional[Tensor] = None,
+        delay_mode: Optional[str] = "none",
+        delay_steps: Optional[int] = 0,
+        return_hidden_traces: bool = False,
+        blank_feature_mode: Optional[str] = None,
+    ) -> Tensor | Dict[str, Any]:
+        resolved_mode, resolved_steps, resolved_blank_mode, resolved_return_traces = self._resolve_delay_args(
+            delay_mode=delay_mode,
+            delay_steps=delay_steps,
+            blank_feature_mode=blank_feature_mode,
+            return_hidden_traces=return_hidden_traces,
+        )
+        if max_steps is None:
+            if target_lengths is not None:
+                max_steps = int(target_lengths.max().item())
+            else:
+                max_steps = int(frame_lengths.max().item())
+
+        encoder_outputs, encoder_state, encoder_traces = self.encode_frames(
+            frames,
+            frame_lengths,
+            return_traces=resolved_return_traces,
+        )
+        delayed_state, delay_traces = self.apply_delay(
+            encoder_state=encoder_state,
+            batch_size=frames.size(0),
+            device=frames.device,
+            delay_steps=resolved_steps,
+            delay_mode=resolved_mode,
+            blank_feature_mode=resolved_blank_mode,
+            return_traces=resolved_return_traces,
+        )
+        decoder_outputs = self.decode_autoregressive(
+            encoder_outputs,
+            frame_lengths,
+            delayed_state,
+            targets=None,
+            target_lengths=target_lengths,
+            max_steps=max_steps,
+            return_traces=resolved_return_traces,
+        )
+        predictions = decoder_outputs["predictions"]
+        if not resolved_return_traces:
+            return predictions
+        return {
+            "predictions": predictions,
+            "hidden_traces": self._compose_hidden_traces(
+                encoder_traces=encoder_traces,
+                delay_traces=delay_traces,
+                decoder_outputs=decoder_outputs,
+                frame_lengths=frame_lengths,
+                target_lengths=target_lengths,
+            ),
+        }

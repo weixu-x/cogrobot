@@ -1,0 +1,34 @@
+{
+  "dataset_root": "corsi_artifacts/visual_base/datasets/freecam_index_v2_train",
+  "val_dataset_root": "corsi_artifacts/visual_base/datasets/freecam_index_v2_val",
+  "camera_name": "freecam",
+  "include_reset_frame": false,
+  "val_ratio": 0.1,
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0,
+  "cnn_feature_dim": 128,
+  "token_embedding_dim": 64,
+  "hidden_dim": 128,
+  "num_layers": 1,
+  "dropout": 0.0,
+  "input_image_size": 128,
+  "attention_dim": 128,
+  "max_decode_steps": 6,
+  "step_embedding_dim": 16,
+  "device": "auto",
+  "output_dir": "corsi_artifacts/visual_base/ablations/freecam_index_v2/freecam_index_v2_ablate_step_ss_seed42",
+  "model": {
+    "use_attention": false,
+    "use_step_embedding": true
+  },
+  "training": {
+    "max_epochs": 100,
+    "seed": 42,
+    "early_stopping_patience": 20,
+    "use_scheduled_sampling": true,
+    "scheduled_sampling_start": 1.0,
+    "scheduled_sampling_end": 0.5,
+    "scheduled_sampling_warmup_epochs": 40
+  }
+}

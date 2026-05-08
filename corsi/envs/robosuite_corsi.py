@@ -337,6 +337,7 @@ def rollout_sequence_offline(
     video_path: Path,
     frames_dir: Path,
     fps: int = 20,
+    write_videos: bool = True,
     keep_frames: bool = False,
     save_keyframes: bool = False,
     keyframes_dir: Optional[Path] = None,
@@ -356,13 +357,15 @@ def rollout_sequence_offline(
         for camera_name in cameras:
             (keyframes_dir / camera_name).mkdir(parents=True, exist_ok=True)
 
-    video_path.parent.mkdir(parents=True, exist_ok=True)
+    writers = {}
     video_root = video_path.stem
     video_ext = video_path.suffix
-    writers = {
-        camera_name: imageio.get_writer(video_path.parent / f"{video_root}_{camera_name}{video_ext}", fps=fps)
-        for camera_name in cameras
-    }
+    if write_videos:
+        video_path.parent.mkdir(parents=True, exist_ok=True)
+        writers = {
+            camera_name: imageio.get_writer(video_path.parent / f"{video_root}_{camera_name}{video_ext}", fps=fps)
+            for camera_name in cameras
+        }
 
     try:
         state = init_sequence_state(env, block_sequence, **state_kwargs)
@@ -377,7 +380,8 @@ def rollout_sequence_offline(
                     if obs_key not in state["obs"]:
                         raise KeyError(f"Missing camera obs '{obs_key}'. Available keys: {list(state['obs'].keys())}")
                     frame = state["obs"][obs_key]
-                writers[camera_name].append_data(frame)
+                if write_videos:
+                    writers[camera_name].append_data(frame)
                 if keep_frames:
                     imageio.imwrite(frames_dir / camera_name / f"frame_{state['step']:05d}.png", frame)
                 if save_keyframes and state["dwell_counter"] == 1 and not state["completed"]:

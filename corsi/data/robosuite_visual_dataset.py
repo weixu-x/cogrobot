@@ -85,13 +85,19 @@ class RobosuiteVisualCorsiDataset:
             reset_frame = self._load_frame_stack([reset_path])
             frames = np.concatenate([reset_frame, frames], axis=0)
 
+        target_length = int(sample["length"])
+        frame_length = int(frames.shape[0])
+
         return {
             "dataset_name": self.dataset_name,
             "split_name": self.split_name,
             "trial_id": str(sample["trial_id"]),
             "frames": frames,
             "targets": list(sample["sequence"]),
-            "length": int(sample["length"]),
+            "length": target_length,
+            "target_length": target_length,
+            "frame_length": frame_length,
+            "original_frame_length": frame_length,
             "camera_name": camera_name,
             "frame_paths": frame_paths,
             "reset_path": reset_path,
