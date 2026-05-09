@@ -1,0 +1,14 @@
+{
+  "base_config": "base_v2_attention_ablation.json",
+  "output_dir": "corsi_artifacts/visual_base/training/attention_ablation/noisy_global_01",
+  "model": {
+    "attention_type": "noisy_global",
+    "noisy_attention": {
+      "enabled": true,
+      "noise_std": 0.1,
+      "apply_during_training": true,
+      "apply_during_eval": false
+    },
+    "use_step_embedding": true
+  }
+}

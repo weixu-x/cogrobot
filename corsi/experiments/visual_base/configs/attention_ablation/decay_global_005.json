@@ -1,0 +1,13 @@
+{
+  "base_config": "base_v2_attention_ablation.json",
+  "output_dir": "corsi_artifacts/visual_base/training/attention_ablation/decay_global_005",
+  "model": {
+    "attention_type": "decay_global",
+    "memory_decay": {
+      "enabled": true,
+      "decay_type": "recency",
+      "alpha": 0.05
+    },
+    "use_step_embedding": true
+  }
+}

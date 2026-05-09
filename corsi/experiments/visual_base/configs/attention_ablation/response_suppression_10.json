@@ -1,0 +1,14 @@
+{
+  "base_config": "base_v2_attention_ablation.json",
+  "output_dir": "corsi_artifacts/visual_base/training/attention_ablation/response_suppression_10",
+  "model": {
+    "use_attention": true,
+    "attention_type": "global",
+    "response_suppression": {
+      "enabled": true,
+      "beta": 1.0,
+      "hard_mask": false
+    },
+    "use_step_embedding": true
+  }
+}

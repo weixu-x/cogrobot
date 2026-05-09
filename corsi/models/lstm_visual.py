@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, Optional
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
+from corsi.models.attention import (
+    AttentionConfig,
+    AttentionModule,
+    CapacityGateConfig,
+    LocalAttentionConfig,
+    MemoryDecayConfig,
+    NoisyAttentionConfig,
+    ResponseSuppressionConfig,
+    build_attention_config,
+)
 
 
 @dataclass
@@ -24,6 +35,13 @@ class VisualLSTMConfig:
     input_image_size: int = 128
     use_attention: bool = False
     attention_dim: int = 128
+    attention_type: str = "global"
+    attention_temperature: float = 1.0
+    local_attention: LocalAttentionConfig = field(default_factory=LocalAttentionConfig)
+    noisy_attention: NoisyAttentionConfig = field(default_factory=NoisyAttentionConfig)
+    memory_decay: MemoryDecayConfig = field(default_factory=MemoryDecayConfig)
+    capacity_gate: CapacityGateConfig = field(default_factory=CapacityGateConfig)
+    response_suppression: ResponseSuppressionConfig = field(default_factory=ResponseSuppressionConfig)
     use_step_embedding: bool = False
     max_decode_steps: int = 6
     step_embedding_dim: int = 16
@@ -36,6 +54,22 @@ class VisualLSTMConfig:
     @property
     def start_token_id(self) -> int:
         return self.num_blocks
+
+    def attention_config(self) -> AttentionConfig:
+        def payload(value: Any) -> Dict[str, Any]:
+            return dict(value) if isinstance(value, dict) else asdict(value)
+
+        return build_attention_config(
+            {
+                "attention_type": self.attention_type,
+                "attention_temperature": self.attention_temperature,
+                "local_attention": payload(self.local_attention),
+                "noisy_attention": payload(self.noisy_attention),
+                "memory_decay": payload(self.memory_decay),
+                "capacity_gate": payload(self.capacity_gate),
+                "response_suppression": payload(self.response_suppression),
+            }
+        )
 
 
 class FrameCNNEncoder(nn.Module):
@@ -91,21 +125,36 @@ class VisualSeq2SeqLSTM(nn.Module):
             dropout=rnn_dropout,
             batch_first=True,
         )
-        if config.use_attention:
-            self.attention_encoder_proj = nn.Linear(config.hidden_dim, config.attention_dim, bias=False)
-            self.attention_decoder_proj = nn.Linear(config.hidden_dim, config.attention_dim, bias=False)
-            self.attention_score = nn.Linear(config.attention_dim, 1, bias=False)
-            self.attention_fusion = nn.Linear(config.hidden_dim * 2, config.hidden_dim)
-        else:
-            self.attention_encoder_proj = None
-            self.attention_decoder_proj = None
-            self.attention_score = None
-            self.attention_fusion = None
+        self.attention = (
+            AttentionModule(
+                config.attention_config(),
+                hidden_dim=config.hidden_dim,
+                attention_dim=config.attention_dim,
+            )
+            if config.use_attention
+            else None
+        )
         self.output_head = nn.Linear(config.hidden_dim, config.num_blocks)
 
         # Backward-compatible aliases for any external code that still uses the old names.
         self.encoder = self.encoder_lstm
         self.decoder = self.decoder_lstm
+
+    def load_state_dict(self, state_dict, strict: bool = True):  # type: ignore[override]
+        remapped = dict(state_dict)
+        legacy_attention_key_map = {
+            "attention_encoder_proj.weight": "attention.encoder_proj.weight",
+            "attention_decoder_proj.weight": "attention.decoder_proj.weight",
+            "attention_score.weight": "attention.score.weight",
+            "attention_fusion.weight": "attention.fusion.weight",
+            "attention_fusion.bias": "attention.fusion.bias",
+        }
+        for old_key, new_key in legacy_attention_key_map.items():
+            if old_key in remapped and new_key not in remapped:
+                remapped[new_key] = remapped[old_key]
+            if old_key in remapped and new_key in remapped:
+                remapped.pop(old_key)
+        return super().load_state_dict(remapped, strict=strict)
 
     def _encode_frames_to_features(self, frames: Tensor) -> Tensor:
         batch_size, seq_len, channels, height, width = frames.shape
@@ -306,27 +355,38 @@ class VisualSeq2SeqLSTM(nn.Module):
         step_hidden: Tensor,
         encoder_outputs: Tensor,
         encoder_mask: Tensor,
-    ) -> tuple[Tensor, Tensor]:
-        if (
-            not self.config.use_attention
-            or self.attention_encoder_proj is None
-            or self.attention_decoder_proj is None
-            or self.attention_score is None
-            or self.attention_fusion is None
-        ):
+        step_index: int,
+    ) -> tuple[Tensor, Tensor, Dict[str, Tensor]]:
+        if not self.config.use_attention or self.attention is None:
             batch_size, time_steps, _ = encoder_outputs.shape
             empty_weights = torch.zeros(batch_size, time_steps, device=step_hidden.device)
-            return step_hidden, empty_weights
+            empty_diag = {
+                "attention_entropy": torch.zeros(batch_size, device=step_hidden.device),
+                "attention_peak_index": torch.zeros(batch_size, dtype=torch.long, device=step_hidden.device),
+                "attention_peak_displacement": torch.zeros(batch_size, device=step_hidden.device),
+            }
+            return step_hidden, empty_weights, empty_diag
 
-        encoder_proj = self.attention_encoder_proj(encoder_outputs)
-        decoder_proj = self.attention_decoder_proj(step_hidden).unsqueeze(1)
-        energy = torch.tanh(encoder_proj + decoder_proj)
-        scores = self.attention_score(energy).squeeze(-1)
-        scores = scores.masked_fill(~encoder_mask, torch.finfo(scores.dtype).min)
-        attention_weights = torch.softmax(scores, dim=-1)
-        context = torch.bmm(attention_weights.unsqueeze(1), encoder_outputs).squeeze(1)
-        fused_hidden = torch.tanh(self.attention_fusion(torch.cat([step_hidden, context], dim=-1)))
-        return fused_hidden, attention_weights
+        return self.attention(
+            step_hidden,
+            encoder_outputs,
+            encoder_mask,
+            step_index=step_index,
+            training=self.training,
+        )
+
+    def _apply_response_suppression(
+        self,
+        logits: Tensor,
+        previous_outputs_mask: Tensor,
+    ) -> Tensor:
+        suppression = self.config.response_suppression
+        if not suppression.enabled or suppression.beta <= 0:
+            return logits
+        mask = previous_outputs_mask.bool()
+        if suppression.hard_mask:
+            return logits.masked_fill(mask, torch.finfo(logits.dtype).min)
+        return logits - float(suppression.beta) * previous_outputs_mask.float()
 
     def _decode_step(
         self,
@@ -336,17 +396,21 @@ class VisualSeq2SeqLSTM(nn.Module):
         state: tuple[Tensor, Tensor],
         encoder_outputs: Tensor,
         encoder_mask: Tensor,
-    ) -> tuple[Tensor, Tensor, tuple[Tensor, Tensor], Tensor]:
+        previous_outputs_mask: Optional[Tensor] = None,
+    ) -> tuple[Tensor, Tensor, tuple[Tensor, Tensor], Tensor, Dict[str, Tensor]]:
         decoder_inputs = self._decode_input_embedding(input_tokens.unsqueeze(1), step_index)
         decoder_output, next_state = self.decoder_lstm(decoder_inputs, state)
         step_hidden = decoder_output[:, -1, :]
-        fused_hidden, attention_weights = self._apply_attention(
+        fused_hidden, attention_weights, attention_diagnostics = self._apply_attention(
             step_hidden,
             encoder_outputs,
             encoder_mask,
+            step_index,
         )
         step_logits = self.output_head(fused_hidden)
-        return step_logits, fused_hidden, next_state, attention_weights
+        if previous_outputs_mask is not None:
+            step_logits = self._apply_response_suppression(step_logits, previous_outputs_mask)
+        return step_logits, fused_hidden, next_state, attention_weights, attention_diagnostics
 
     def decode_autoregressive(
         self,
@@ -400,6 +464,14 @@ class VisualSeq2SeqLSTM(nn.Module):
         logits_steps = []
         decoder_hidden_trace = []
         attention_trace = []
+        attention_entropy_trace = []
+        attention_peak_displacement_trace = []
+        previous_outputs_mask = torch.zeros(
+            batch_size,
+            self.config.num_blocks,
+            dtype=torch.bool,
+            device=hidden.device,
+        )
 
         if teacher_forcing_ratio < 0.0 or teacher_forcing_ratio > 1.0:
             raise ValueError("teacher_forcing_ratio must be in [0, 1]")
@@ -414,19 +486,33 @@ class VisualSeq2SeqLSTM(nn.Module):
             )
 
         for step_index in range(max_steps):
-            step_logits, step_hidden, (hidden, cell), attention_weights = self._decode_step(
+            step_logits, step_hidden, (hidden, cell), attention_weights, attention_diagnostics = self._decode_step(
                 input_tokens=current_tokens,
                 step_index=step_index,
                 state=(hidden, cell),
                 encoder_outputs=encoder_outputs,
                 encoder_mask=encoder_mask,
+                previous_outputs_mask=previous_outputs_mask,
             )
             next_tokens = step_logits.argmax(dim=-1)
             predictions.append(next_tokens)
             logits_steps.append(step_logits)
+            emitted_tokens = next_tokens
+            if targets is not None and teacher_forcing_ratio >= 1.0 and step_index < targets.size(1):
+                emitted_tokens = targets[:, step_index]
+            valid_emitted = (emitted_tokens >= 0) & (emitted_tokens < self.config.num_blocks)
+            previous_outputs_mask.scatter_(
+                1,
+                emitted_tokens.clamp(0, self.config.num_blocks - 1).unsqueeze(1),
+                valid_emitted.unsqueeze(1),
+            )
             if return_traces:
                 decoder_hidden_trace.append(step_hidden)
                 attention_trace.append(attention_weights)
+                attention_entropy_trace.append(attention_diagnostics["attention_entropy"])
+                attention_peak_displacement_trace.append(
+                    attention_diagnostics["attention_peak_displacement"]
+                )
             if targets is not None and step_index + 1 < max_steps:
                 if teacher_forcing_ratio >= 1.0:
                     current_tokens = previous_targets[:, step_index]
@@ -445,10 +531,13 @@ class VisualSeq2SeqLSTM(nn.Module):
             "predictions": torch.stack(predictions, dim=1),
             "logits": torch.stack(logits_steps, dim=1),
             "decoder_final_hidden": hidden[-1],
+            "attention_weights": torch.stack(attention_trace, dim=1) if attention_trace else None,
         }
         if return_traces:
             payload["decoder_hidden_trace"] = torch.stack(decoder_hidden_trace, dim=1)
             payload["attention_trace"] = torch.stack(attention_trace, dim=1)
+            payload["attention_entropy"] = torch.stack(attention_entropy_trace, dim=1)
+            payload["attention_peak_displacement"] = torch.stack(attention_peak_displacement_trace, dim=1)
         return payload
 
     def _compose_hidden_traces(
@@ -480,6 +569,8 @@ class VisualSeq2SeqLSTM(nn.Module):
             "delay_hidden_trace": delay_traces.get("delay_hidden_trace"),
             "decoder_hidden_trace": decoder_outputs.get("decoder_hidden_trace"),
             "attention_trace": decoder_outputs.get("attention_trace"),
+            "attention_entropy": decoder_outputs.get("attention_entropy"),
+            "attention_peak_displacement": decoder_outputs.get("attention_peak_displacement"),
             "recall_start_hidden": delay_traces["recall_start_hidden"],
             "metadata": metadata,
         }
@@ -529,6 +620,8 @@ class VisualSeq2SeqLSTM(nn.Module):
             teacher_forcing_ratio=teacher_forcing_ratio,
         )
         payload: Dict[str, Any] = {"logits": decoder_outputs["logits"]}
+        if decoder_outputs.get("attention_weights") is not None:
+            payload["attention_weights"] = decoder_outputs["attention_weights"]
         if resolved_return_traces:
             payload["hidden_traces"] = self._compose_hidden_traces(
                 encoder_traces=encoder_traces,

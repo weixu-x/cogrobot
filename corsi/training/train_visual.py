@@ -25,6 +25,13 @@ from torch.utils.data import DataLoader, Subset
 
 from corsi.analysis.metrics import summarize_sequence_metrics
 from corsi.data import RobosuiteVisualCorsiDataset, collate_visual_batch
+from corsi.models.attention import (
+    CapacityGateConfig,
+    LocalAttentionConfig,
+    MemoryDecayConfig,
+    NoisyAttentionConfig,
+    ResponseSuppressionConfig,
+)
 from corsi.models.lstm_visual import VisualLSTMConfig, VisualSeq2SeqLSTM
 from corsi.training.device import resolve_torch_device
 
@@ -52,6 +59,13 @@ class TrainVisualConfig:
     input_image_size: int = 128
     use_attention: bool = False
     attention_dim: int = 128
+    attention_type: str = "global"
+    attention_temperature: float = 1.0
+    local_attention: Optional[Dict[str, Any]] = None
+    noisy_attention: Optional[Dict[str, Any]] = None
+    memory_decay: Optional[Dict[str, Any]] = None
+    capacity_gate: Optional[Dict[str, Any]] = None
+    response_suppression: Optional[Dict[str, Any]] = None
     use_step_embedding: bool = False
     max_decode_steps: int = 6
     step_embedding_dim: int = 16
@@ -86,6 +100,17 @@ def normalize_config_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
             normalized["use_attention"] = model_overrides["use_attention"]
         if "use_step_embedding" in model_overrides:
             normalized["use_step_embedding"] = model_overrides["use_step_embedding"]
+        for key in (
+            "attention_type",
+            "attention_temperature",
+            "local_attention",
+            "noisy_attention",
+            "memory_decay",
+            "capacity_gate",
+            "response_suppression",
+        ):
+            if key in model_overrides:
+                normalized[key] = model_overrides[key]
 
     training_overrides = normalized.pop("training", None)
     if isinstance(training_overrides, dict):
@@ -110,14 +135,26 @@ def normalize_config_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
     if "max_epochs" in normalized:
         normalized["epochs"] = normalized.pop("max_epochs")
 
+    if normalized.get("attention_type", "global") != "global":
+        normalized.setdefault("use_attention", True)
+
     return normalized
 
 
 def load_config_overrides(config_path: str) -> Dict[str, object]:
-    with open(config_path, "r", encoding="utf-8") as handle:
+    path = Path(config_path)
+    with open(path, "r", encoding="utf-8") as handle:
         data = json.load(handle)
     if not isinstance(data, dict):
         raise ValueError("Config file must contain a JSON object")
+    base_config = data.pop("base_config", "")
+    if base_config:
+        base_path = Path(base_config)
+        if not base_path.is_absolute():
+            base_path = path.parent / base_path
+        base_data = load_config_overrides(str(base_path))
+        base_data.update(normalize_config_overrides(data))
+        return base_data
     return normalize_config_overrides(data)
 
 
@@ -240,6 +277,11 @@ def set_seed(seed: int) -> None:
 
 
 def build_model_config(train_config: TrainVisualConfig) -> VisualLSTMConfig:
+    local_attention = LocalAttentionConfig(**(train_config.local_attention or {}))
+    noisy_attention = NoisyAttentionConfig(**(train_config.noisy_attention or {}))
+    memory_decay = MemoryDecayConfig(**(train_config.memory_decay or {}))
+    capacity_gate = CapacityGateConfig(**(train_config.capacity_gate or {}))
+    response_suppression = ResponseSuppressionConfig(**(train_config.response_suppression or {}))
     return VisualLSTMConfig(
         cnn_feature_dim=train_config.cnn_feature_dim,
         token_embedding_dim=train_config.token_embedding_dim,
@@ -249,6 +291,13 @@ def build_model_config(train_config: TrainVisualConfig) -> VisualLSTMConfig:
         input_image_size=train_config.input_image_size,
         use_attention=train_config.use_attention,
         attention_dim=train_config.attention_dim,
+        attention_type=train_config.attention_type,
+        attention_temperature=train_config.attention_temperature,
+        local_attention=local_attention,
+        noisy_attention=noisy_attention,
+        memory_decay=memory_decay,
+        capacity_gate=capacity_gate,
+        response_suppression=response_suppression,
         use_step_embedding=train_config.use_step_embedding,
         max_decode_steps=train_config.max_decode_steps,
         step_embedding_dim=train_config.step_embedding_dim,
@@ -688,6 +737,13 @@ def validate_resume_compatibility(
         "input_image_size",
         "use_attention",
         "attention_dim",
+        "attention_type",
+        "attention_temperature",
+        "local_attention",
+        "noisy_attention",
+        "memory_decay",
+        "capacity_gate",
+        "response_suppression",
         "use_step_embedding",
         "max_decode_steps",
         "step_embedding_dim",
@@ -826,6 +882,7 @@ def build_metrics_payload(
             "experiment_name": output_dir.name,
             "seed": int(config.seed),
             "use_attention": bool(config.use_attention),
+            "attention_type": config.attention_type,
             "use_step_embedding": bool(config.use_step_embedding),
             "use_scheduled_sampling": bool(config.scheduled_sampling),
             "best_epoch": int(epoch),
@@ -1190,6 +1247,13 @@ def main() -> None:
             "num_layers": int(config.num_layers),
             "use_attention": bool(config.use_attention),
             "attention_dim": int(config.attention_dim),
+            "attention_type": config.attention_type,
+            "attention_temperature": float(config.attention_temperature),
+            "local_attention": config.local_attention or {},
+            "noisy_attention": config.noisy_attention or {},
+            "memory_decay": config.memory_decay or {},
+            "capacity_gate": config.capacity_gate or {},
+            "response_suppression": config.response_suppression or {},
             "use_step_embedding": bool(config.use_step_embedding),
             "step_embedding_dim": int(config.step_embedding_dim),
             "scheduled_sampling": bool(config.scheduled_sampling),
