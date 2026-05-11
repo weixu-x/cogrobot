@@ -21,7 +21,12 @@ from corsi.models.attention import (
     build_attention_config,
 )
 
-from corsi.heatmaps import decode_heatmap_argmax, nearest_block_decode, standard_block_heatmap_xy
+from corsi.heatmaps import (
+    decode_heatmap_argmax,
+    nearest_block_decode,
+    standard_block_heatmap_xy,
+    standard_block_norm_xy,
+)
 
 
 @dataclass
@@ -46,6 +51,7 @@ class VisualLSTMConfig:
     capacity_gate: CapacityGateConfig = field(default_factory=CapacityGateConfig)
     response_suppression: ResponseSuppressionConfig = field(default_factory=ResponseSuppressionConfig)
     use_step_embedding: bool = False
+    use_encoder_summary_input: bool = False
     max_decode_steps: int = 6
     step_embedding_dim: int = 16
     delay_mode: str = "none"
@@ -140,8 +146,8 @@ class VisualSeq2SeqLSTM(nn.Module):
     def __init__(self, config: VisualLSTMConfig) -> None:
         super().__init__()
         self.config = config
-        if config.output_type not in {"index", "heatmap"}:
-            raise ValueError("output_type must be 'index' or 'heatmap'")
+        if config.output_type not in {"index", "heatmap", "xy"}:
+            raise ValueError("output_type must be 'index', 'heatmap', or 'xy'")
         if config.output_type == "heatmap" and config.use_attention:
             raise ValueError("Heatmap output mode requires use_attention=False")
         if config.heatmap_size < 2:
@@ -150,6 +156,8 @@ class VisualSeq2SeqLSTM(nn.Module):
         rnn_dropout = config.dropout if config.num_layers > 1 else 0.0
         decoder_input_dim = config.token_embedding_dim + (
             config.step_embedding_dim if config.use_step_embedding else 0
+        ) + (
+            config.hidden_dim if config.use_encoder_summary_input else 0
         )
         self.frame_encoder = FrameCNNEncoder(config.input_channels, config.cnn_feature_dim)
         self.encoder_lstm = nn.LSTM(
@@ -183,10 +191,19 @@ class VisualSeq2SeqLSTM(nn.Module):
         )
         self.output_head = nn.Linear(config.hidden_dim, config.num_blocks)
         self.heatmap_head = HeatmapHead(config.hidden_dim, config.heatmap_size)
+        self.xy_head = nn.Linear(config.hidden_dim, 2)
         self.register_buffer(
             "block_heatmap_xy",
             torch.as_tensor(
                 standard_block_heatmap_xy(config.heatmap_size, num_blocks=config.num_blocks),
+                dtype=torch.float32,
+            ),
+            persistent=False,
+        )
+        self.register_buffer(
+            "block_norm_xy",
+            torch.as_tensor(
+                standard_block_norm_xy(num_blocks=config.num_blocks),
                 dtype=torch.float32,
             ),
             persistent=False,
@@ -210,6 +227,10 @@ class VisualSeq2SeqLSTM(nn.Module):
                 remapped[new_key] = remapped[old_key]
             if old_key in remapped and new_key in remapped:
                 remapped.pop(old_key)
+        current_state = super().state_dict()
+        for new_key in ("xy_head.weight", "xy_head.bias"):
+            if new_key not in remapped and new_key in current_state:
+                remapped[new_key] = current_state[new_key]
         return super().load_state_dict(remapped, strict=strict)
 
     def _encode_frames_to_features(self, frames: Tensor) -> Tensor:
@@ -392,14 +413,27 @@ class VisualSeq2SeqLSTM(nn.Module):
             decoder_inputs[:, 1:] = previous_targets
         return decoder_inputs
 
-    def _decode_input_embedding(self, input_tokens: Tensor, step_index: int) -> Tensor:
+    def _decode_input_embedding(
+        self,
+        input_tokens: Tensor,
+        step_index: int,
+        encoder_summary: Optional[Tensor] = None,
+    ) -> Tensor:
         token_emb = self.token_embedding(input_tokens)
+        pieces = [token_emb]
         if not self.config.use_step_embedding or self.step_embedding is None:
-            return token_emb
-        clamped_step = min(step_index, self.config.max_decode_steps - 1)
-        step_ids = torch.full_like(input_tokens, fill_value=clamped_step)
-        step_emb = self.step_embedding(step_ids)
-        return torch.cat([token_emb, step_emb], dim=-1)
+            step_emb = None
+        else:
+            clamped_step = min(step_index, self.config.max_decode_steps - 1)
+            step_ids = torch.full_like(input_tokens, fill_value=clamped_step)
+            step_emb = self.step_embedding(step_ids)
+            pieces.append(step_emb)
+        if self.config.use_encoder_summary_input:
+            if encoder_summary is None:
+                raise ValueError("encoder_summary is required when use_encoder_summary_input=True")
+            summary = encoder_summary.unsqueeze(1).expand(-1, input_tokens.size(1), -1)
+            pieces.append(summary)
+        return torch.cat(pieces, dim=-1)
 
     def _encoder_mask(self, encoder_outputs: Tensor, frame_lengths: Tensor) -> Tensor:
         max_time = encoder_outputs.size(1)
@@ -453,8 +487,13 @@ class VisualSeq2SeqLSTM(nn.Module):
         encoder_outputs: Tensor,
         encoder_mask: Tensor,
         previous_outputs_mask: Optional[Tensor] = None,
+        encoder_summary: Optional[Tensor] = None,
     ) -> tuple[Tensor, Tensor, tuple[Tensor, Tensor], Tensor, Dict[str, Tensor]]:
-        decoder_inputs = self._decode_input_embedding(input_tokens.unsqueeze(1), step_index)
+        decoder_inputs = self._decode_input_embedding(
+            input_tokens.unsqueeze(1),
+            step_index,
+            encoder_summary=encoder_summary,
+        )
         decoder_output, next_state = self.decoder_lstm(decoder_inputs, state)
         step_hidden = decoder_output[:, -1, :]
         fused_hidden, attention_weights, attention_diagnostics = self._apply_attention(
@@ -488,6 +527,7 @@ class VisualSeq2SeqLSTM(nn.Module):
         if targets is not None and (
             not self.config.use_attention
             and not self.config.use_step_embedding
+            and not self.config.use_encoder_summary_input
             and teacher_forcing_ratio >= 1.0
         ):
             decoder_inputs = self._teacher_forcing_inputs(targets)
@@ -499,6 +539,9 @@ class VisualSeq2SeqLSTM(nn.Module):
                 else None,
                 "heatmap_logits": self.heatmap_head(decoder_outputs)
                 if self.config.output_type == "heatmap"
+                else None,
+                "pred_xy": self.xy_head(decoder_outputs)
+                if self.config.output_type == "xy"
                 else None,
                 "decoder_final_hidden": self._top_hidden(final_state),
             }
@@ -515,6 +558,7 @@ class VisualSeq2SeqLSTM(nn.Module):
                 raise ValueError("decode_autoregressive requires target_lengths or max_steps for greedy decoding")
 
         hidden, cell = encoder_state
+        encoder_summary = hidden[-1]
         batch_size = hidden.size(1)
         encoder_mask = self._encoder_mask(encoder_outputs, frame_lengths)
         current_tokens = torch.full(
@@ -527,6 +571,7 @@ class VisualSeq2SeqLSTM(nn.Module):
         logits_steps = []
         heatmap_logits_steps = []
         heatmap_xy_steps = []
+        pred_xy_steps = []
         spatial_error_steps = []
         decoder_hidden_trace = []
         attention_trace = []
@@ -559,11 +604,12 @@ class VisualSeq2SeqLSTM(nn.Module):
                 encoder_outputs=encoder_outputs,
                 encoder_mask=encoder_mask,
                 previous_outputs_mask=previous_outputs_mask,
+                encoder_summary=encoder_summary,
             )
             if self.config.output_type == "index":
                 next_tokens = step_logits.argmax(dim=-1)
                 logits_steps.append(step_logits)
-            else:
+            elif self.config.output_type == "heatmap":
                 step_heatmap_logits = self.heatmap_head(step_hidden.unsqueeze(1))[:, -1]
                 step_xy = decode_heatmap_argmax(step_heatmap_logits.unsqueeze(1))[:, -1]
                 next_tokens, step_distances = nearest_block_decode(
@@ -572,6 +618,14 @@ class VisualSeq2SeqLSTM(nn.Module):
                 )
                 heatmap_logits_steps.append(step_heatmap_logits)
                 heatmap_xy_steps.append(step_xy)
+                spatial_error_steps.append(step_distances)
+            else:
+                step_xy = self.xy_head(step_hidden)
+                next_tokens, step_distances = nearest_block_decode(
+                    step_xy,
+                    block_xy=self.block_norm_xy,
+                )
+                pred_xy_steps.append(step_xy)
                 spatial_error_steps.append(step_distances)
             predictions.append(next_tokens)
             emitted_tokens = next_tokens
@@ -615,8 +669,11 @@ class VisualSeq2SeqLSTM(nn.Module):
             "heatmap_xy": torch.stack(heatmap_xy_steps, dim=1)
             if self.config.output_type == "heatmap"
             else None,
+            "pred_xy": torch.stack(pred_xy_steps, dim=1)
+            if self.config.output_type == "xy"
+            else None,
             "nearest_distances": torch.stack(spatial_error_steps, dim=1)
-            if self.config.output_type == "heatmap"
+            if self.config.output_type in {"heatmap", "xy"}
             else None,
             "decoder_final_hidden": hidden[-1],
             "attention_weights": torch.stack(attention_trace, dim=1) if attention_trace else None,
@@ -710,6 +767,7 @@ class VisualSeq2SeqLSTM(nn.Module):
         payload: Dict[str, Any] = {
             "logits": decoder_outputs["logits"],
             "heatmap_logits": decoder_outputs.get("heatmap_logits"),
+            "pred_xy": decoder_outputs.get("pred_xy"),
         }
         if decoder_outputs.get("attention_weights") is not None:
             payload["attention_weights"] = decoder_outputs["attention_weights"]
@@ -777,6 +835,21 @@ class VisualSeq2SeqLSTM(nn.Module):
                 "predictions": predictions,
                 "heatmap_logits": decoder_outputs["heatmap_logits"],
                 "heatmap_xy": decoder_outputs["heatmap_xy"],
+                "nearest_distances": decoder_outputs["nearest_distances"],
+            }
+            if resolved_return_traces:
+                payload["hidden_traces"] = self._compose_hidden_traces(
+                    encoder_traces=encoder_traces,
+                    delay_traces=delay_traces,
+                    decoder_outputs=decoder_outputs,
+                    frame_lengths=frame_lengths,
+                    target_lengths=target_lengths,
+                )
+            return payload
+        if self.config.output_type == "xy":
+            payload = {
+                "predictions": predictions,
+                "pred_xy": decoder_outputs["pred_xy"],
                 "nearest_distances": decoder_outputs["nearest_distances"],
             }
             if resolved_return_traces:

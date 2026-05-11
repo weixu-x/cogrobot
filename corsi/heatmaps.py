@@ -40,6 +40,20 @@ def standard_block_heatmap_xy(size: int, *, num_blocks: int = 9) -> np.ndarray:
     return np.asarray(coords, dtype=np.float32)
 
 
+def standard_block_norm_xy(*, num_blocks: int = 9) -> np.ndarray:
+    """Returns block centers in Corsi lower-left normalized XY space."""
+
+    layout = standard_corsi_layout(origin="image", use_block_centers=True)
+    board_width, board_height = STANDARD_CORSI_BOARD_SIZE
+    coords = []
+    for block_id in range(num_blocks):
+        center_x, center_y = layout[block_id]
+        x_norm = (float(center_x) - float(board_width) * 0.5) / (float(board_width) * 0.5)
+        y_norm = (float(center_y) - float(board_height) * 0.5) / (float(board_height) * 0.5)
+        coords.append((x_norm, y_norm))
+    return np.asarray(coords, dtype=np.float32)
+
+
 def gaussian_heatmap(
     center_xy: Tuple[float, float],
     *,
