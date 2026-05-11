@@ -9,6 +9,8 @@ from typing import Dict, Optional, Sequence
 import imageio.v2 as imageio
 import numpy as np
 
+from corsi.heatmaps import sequence_to_target_heatmaps
+
 
 class RobosuiteVisualCorsiDataset:
     """Loads pre-exported robosuite Corsi samples from a dataset root."""
@@ -19,10 +21,16 @@ class RobosuiteVisualCorsiDataset:
         *,
         camera_name: Optional[str] = None,
         include_reset_frame: bool = False,
+        heatmap_size: int = 32,
+        heatmap_sigma: float = 2.0,
+        heatmap_normalize: bool = True,
     ) -> None:
         self.dataset_root = Path(dataset_root)
         self.camera_name = camera_name
         self.include_reset_frame = bool(include_reset_frame)
+        self.heatmap_size = int(heatmap_size)
+        self.heatmap_sigma = float(heatmap_sigma)
+        self.heatmap_normalize = bool(heatmap_normalize)
 
         if not self.dataset_root.exists():
             raise FileNotFoundError(f"Dataset root does not exist: {self.dataset_root}")
@@ -61,10 +69,31 @@ class RobosuiteVisualCorsiDataset:
         return self.camera_name
 
     def _load_frame_stack(self, paths: Sequence[str]) -> np.ndarray:
-        frames = [imageio.imread(Path(path)) for path in paths]
+        frames = [imageio.imread(self._resolve_data_path(str(path))) for path in paths]
         if not frames:
             raise ValueError("Expected at least one frame path")
         return np.stack(frames, axis=0)
+
+    def _resolve_data_path(self, path: str) -> Path:
+        candidate = Path(path)
+        if candidate.is_absolute() or candidate.exists():
+            return candidate
+
+        cwd_candidate = Path.cwd() / candidate
+        if cwd_candidate.exists():
+            return cwd_candidate
+
+        repo_root = self.dataset_root.resolve()
+        for _ in range(4):
+            repo_root = repo_root.parent
+        repo_candidate = repo_root / candidate
+        if repo_candidate.exists():
+            return repo_candidate
+
+        dataset_candidate = self.dataset_root / candidate
+        if dataset_candidate.exists():
+            return dataset_candidate
+        return candidate
 
     def __getitem__(self, index: int) -> Dict[str, object]:
         sample = self.samples[index]
@@ -85,12 +114,21 @@ class RobosuiteVisualCorsiDataset:
             reset_frame = self._load_frame_stack([reset_path])
             frames = np.concatenate([reset_frame, frames], axis=0)
 
+        targets = list(sample["sequence"])
+        target_heatmaps = sequence_to_target_heatmaps(
+            targets,
+            size=self.heatmap_size,
+            sigma=self.heatmap_sigma,
+            normalize=self.heatmap_normalize,
+        )
+
         return {
             "dataset_name": self.dataset_name,
             "split_name": self.split_name,
             "trial_id": str(sample["trial_id"]),
             "frames": frames,
-            "targets": list(sample["sequence"]),
+            "targets": targets,
+            "target_heatmaps": target_heatmaps,
             "length": int(sample["length"]),
             "camera_name": camera_name,
             "frame_paths": frame_paths,
