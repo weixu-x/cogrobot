@@ -24,6 +24,7 @@ def main() -> None:
     payload = np.load(args.attention_npz)
     weights = payload["attention_weights"]
     lengths = payload["target_lengths"]
+    exact_match = payload["exact_match"] if "exact_match" in payload.files else None
 
     mean_attention = weights.mean(axis=0)
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -35,6 +36,36 @@ def main() -> None:
     fig.tight_layout()
     fig.savefig(output_dir / "attention_heatmap_all.png", dpi=180)
     plt.close(fig)
+
+    for length in sorted(set(int(length) for length in lengths)):
+        length_mask = lengths == length
+        if not np.any(length_mask):
+            continue
+        length_attention = weights[length_mask, :length, :].mean(axis=0)
+        fig, ax = plt.subplots(figsize=(6, 5))
+        im = ax.imshow(length_attention, aspect="auto", origin="lower", cmap="viridis")
+        ax.set_xlabel("encoder time")
+        ax.set_ylabel("decoder output step")
+        ax.set_title(f"{args.title}: mean attention length {length}")
+        fig.colorbar(im, ax=ax)
+        fig.tight_layout()
+        fig.savefig(output_dir / f"attention_heatmap_len{length}.png", dpi=180)
+        plt.close(fig)
+
+    if exact_match is not None:
+        for label, mask in (("correct", exact_match.astype(bool)), ("incorrect", ~exact_match.astype(bool))):
+            if not np.any(mask):
+                continue
+            subset_attention = weights[mask].mean(axis=0)
+            fig, ax = plt.subplots(figsize=(6, 5))
+            im = ax.imshow(subset_attention, aspect="auto", origin="lower", cmap="viridis")
+            ax.set_xlabel("encoder time")
+            ax.set_ylabel("decoder output step")
+            ax.set_title(f"{args.title}: mean attention {label}")
+            fig.colorbar(im, ax=ax)
+            fig.tight_layout()
+            fig.savefig(output_dir / f"attention_heatmap_{label}.png", dpi=180)
+            plt.close(fig)
 
     entropy_by_step = []
     for step in range(weights.shape[1]):

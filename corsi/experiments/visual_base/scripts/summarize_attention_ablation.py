@@ -21,25 +21,24 @@ def flatten_summary(path: Path) -> Dict[str, Any]:
         payload = json.load(handle)
     metrics = payload.get("metrics", {})
     attention = metrics.get("attention", {})
+    taxonomy = metrics.get("error_taxonomy", {})
     row: Dict[str, Any] = {
         "run_id": path.parents[1].name,
         "model_name": path.parents[1].name,
+        "eval_id": path.parent.name,
         "attention_type": payload.get("attention_type", ""),
         "data_root": payload.get("data_root", ""),
         "eval_mode": payload.get("eval_mode", ""),
         "token_accuracy": metrics.get("token_accuracy", 0.0),
         "full_sequence_accuracy": metrics.get("full_sequence_accuracy", 0.0),
         "mean_first_error_position": metrics.get("error_analysis", {}).get("mean_first_error_pos"),
-        "wrong_block_rate": metrics.get("error_breakdown", {}).get("wrong_block", 0.0),
-        "order_error_rate": metrics.get("error_breakdown", {}).get("order_error", 0.0),
-        "repeat_error_rate": metrics.get("error_analysis", {}).get("repeat_error_rate", 0.0),
-        "kendall_tau_mean": "",
-        "lcs_normalized_mean": "",
         "checkpoint_path": payload.get("checkpoint_path", ""),
     }
     for length, stats in metrics.get("per_length", {}).items():
-        row[f"accuracy_len_{length}"] = stats.get("full_seq_acc", 0.0)
+        row[f"token_accuracy_len_{length}"] = stats.get("token_acc", 0.0)
+        row[f"full_sequence_accuracy_len_{length}"] = stats.get("full_seq_acc", 0.0)
     row.update(attention)
+    row.update(taxonomy)
     return row
 
 

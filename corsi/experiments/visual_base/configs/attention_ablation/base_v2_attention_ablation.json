@@ -23,7 +23,7 @@
   "scheduled_sampling_start": 1.0,
   "scheduled_sampling_end": 0.5,
   "scheduled_sampling_warmup_epochs": 40,
-  "seed": 23,
+  "seed": 42,
   "device": "auto",
   "output_dir": "corsi_artifacts/visual_base/training/attention_ablation/base"
 }

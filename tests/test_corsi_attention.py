@@ -95,5 +95,21 @@ class AttentionModuleTests(unittest.TestCase):
         self.assertTrue(math.isclose(float(suppressed[0, 2]), 0.0, abs_tol=1e-6))
 
 
+class ErrorTaxonomyTests(unittest.TestCase):
+    def test_repeat_error_ignores_valid_target_repeats(self):
+        from corsi.analysis.error_taxonomy import classify_trial
+
+        row = classify_trial([1, 2, 1, 3], [1, 2, 1, 3])
+
+        self.assertEqual(row["repeat_error_count"], 0)
+
+    def test_repeat_error_counts_prediction_excess_over_target(self):
+        from corsi.analysis.error_taxonomy import classify_trial
+
+        row = classify_trial([1, 2, 3, 4], [1, 2, 2, 2])
+
+        self.assertEqual(row["repeat_error_count"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

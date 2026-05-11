@@ -189,6 +189,17 @@ def parse_args() -> TrainVisualConfig:
         default=defaults["use_attention"],
     )
     parser.add_argument("--attention-dim", type=int, default=defaults["attention_dim"])
+    parser.add_argument("--attention-type", type=str, default=defaults["attention_type"])
+    parser.add_argument("--attention-temperature", type=float, default=defaults["attention_temperature"])
+    parser.add_argument("--local-attention", type=json.loads, default=defaults["local_attention"])
+    parser.add_argument("--noisy-attention", type=json.loads, default=defaults["noisy_attention"])
+    parser.add_argument("--memory-decay", type=json.loads, default=defaults["memory_decay"])
+    parser.add_argument("--capacity-gate", type=json.loads, default=defaults["capacity_gate"])
+    parser.add_argument(
+        "--response-suppression",
+        type=json.loads,
+        default=defaults["response_suppression"],
+    )
     parser.add_argument(
         "--use-step-embedding",
         action=argparse.BooleanOptionalAction,

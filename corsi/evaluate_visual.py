@@ -35,19 +35,31 @@ from corsi.training.device import resolve_torch_device
 from corsi.training.train_visual import move_batch_to_device, pad_to_max_steps
 
 
+def add_bool_optional_arg(parser: argparse.ArgumentParser, name: str, *, default: bool | None) -> None:
+    if hasattr(argparse, "BooleanOptionalAction"):
+        parser.add_argument(name, action=argparse.BooleanOptionalAction, default=default)
+        return
+
+    dest = name.lstrip("-").replace("-", "_")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(name, dest=dest, action="store_true")
+    group.add_argument(f"--no-{name.lstrip('-')}", dest=dest, action="store_false")
+    parser.set_defaults(**{dest: default})
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--data-root", required=True)
     parser.add_argument("--split", default="test")
     parser.add_argument("--camera-name", default="")
-    parser.add_argument("--include-reset-frame", action=argparse.BooleanOptionalAction, default=None)
+    add_bool_optional_arg(parser, "--include-reset-frame", default=None)
     parser.add_argument("--mode", choices=["free_running", "teacher_forced"], default="free_running")
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "mps", "cuda"])
     parser.add_argument("--output-dir", default="")
-    parser.add_argument("--save-predictions", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--save-attention", action=argparse.BooleanOptionalAction, default=False)
+    add_bool_optional_arg(parser, "--save-predictions", default=True)
+    add_bool_optional_arg(parser, "--save-attention", default=False)
     return parser.parse_args()
 
 
@@ -127,6 +139,58 @@ def pad_attention_to_shape(tensor: torch.Tensor, *, max_steps: int, max_encoder_
     )
     padded[:, : tensor.size(1), : tensor.size(2)] = tensor
     return padded
+
+
+def _mean_numeric(rows: List[Dict[str, Any]], key: str) -> float:
+    values = []
+    for row in rows:
+        value = row.get(key)
+        if value is None:
+            continue
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(numeric):
+            values.append(numeric)
+    return float(np.mean(values)) if values else 0.0
+
+
+def summarize_error_taxonomy(rows: List[Dict[str, Any]]) -> Dict[str, float]:
+    total = len(rows)
+    if total == 0:
+        return {
+            "wrong_block_count_mean": 0.0,
+            "wrong_block_rate": 0.0,
+            "order_error_count_mean": 0.0,
+            "order_error_rate": 0.0,
+            "repeat_error_count_mean": 0.0,
+            "repeat_error_rate": 0.0,
+            "omission_count_mean": 0.0,
+            "omission_rate": 0.0,
+            "adjacent_transposition_count_mean": 0.0,
+            "adjacent_transposition_rate": 0.0,
+            "kendall_tau_mean": 0.0,
+            "lcs_normalized_mean": 0.0,
+        }
+
+    def event_rate(key: str) -> float:
+        return float(sum(float(row.get(key, 0) or 0) > 0 for row in rows) / total)
+
+    return {
+        "wrong_block_count_mean": _mean_numeric(rows, "wrong_block_count"),
+        "wrong_block_rate": event_rate("wrong_block_count"),
+        "order_error_count_mean": _mean_numeric(rows, "order_error_count"),
+        "order_error_rate": event_rate("order_error_count"),
+        "repeat_error_count_mean": _mean_numeric(rows, "repeat_error_count"),
+        "repeat_error_rate": event_rate("repeat_error_count"),
+        "omission_count_mean": _mean_numeric(rows, "omission_count"),
+        "omission_rate": event_rate("omission_count"),
+        "adjacent_transposition_count_mean": _mean_numeric(rows, "adjacent_transposition_count"),
+        "adjacent_transposition_rate": event_rate("adjacent_transposition_count"),
+        "kendall_tau_mean": _mean_numeric(rows, "kendall_tau"),
+        "lcs_normalized_mean": _mean_numeric(rows, "lcs_normalized"),
+    }
 
 
 def main() -> None:
@@ -238,6 +302,7 @@ def main() -> None:
     target_lists = [row[: int(length)].tolist() for row, length in zip(targets, target_lengths)]
     prediction_lists = [row[: int(length)].tolist() for row, length in zip(predictions, target_lengths)]
     error_rows = classify_trials(target_lists, prediction_lists, target_lengths.tolist())
+    metrics["error_taxonomy"] = summarize_error_taxonomy(error_rows)
 
     attention_rows: List[Dict[str, Any]] = []
     if attention_all:
@@ -289,6 +354,7 @@ def main() -> None:
             attention_weights=attention_np,
             target_lengths=target_lengths.numpy(),
             frame_lengths=frame_lengths.numpy(),
+            exact_match=np.asarray([row["exact_match"] for row in error_rows], dtype=bool),
         )
 
     summary = {
@@ -311,6 +377,7 @@ def main() -> None:
     }
     if "attention" in metrics:
         flat_summary.update(metrics["attention"])
+    flat_summary.update(metrics.get("error_taxonomy", {}))
     write_rows_csv(output_dir / "summary_metrics.csv", [flat_summary])
     print(json.dumps(flat_summary, allow_nan=True))
 

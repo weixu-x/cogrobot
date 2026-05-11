@@ -68,6 +68,7 @@ def classify_trial(target: Sequence[int], pred: Sequence[int], length: Optional[
     target_list = list(target[:length])
     pred_list = list(pred[:length])
     target_set = set(target_list)
+    target_counts = Counter(target_list)
     pred_counts = Counter(pred_list)
 
     exact_match = pred_list == target_list
@@ -83,7 +84,10 @@ def classify_trial(target: Sequence[int], pred: Sequence[int], length: Optional[
         for index, token in enumerate(pred_list)
         if index < len(target_list) and token in target_set and token != target_list[index]
     )
-    repeat_error_count = sum(max(0, count - 1) for count in pred_counts.values())
+    repeat_error_count = sum(
+        max(0, count - target_counts.get(token, 0))
+        for token, count in pred_counts.items()
+    )
     omissions = [token for token in target_list if token not in pred_counts]
 
     return {

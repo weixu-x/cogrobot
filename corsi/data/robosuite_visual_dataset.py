@@ -9,6 +9,8 @@ from typing import Dict, Optional, Sequence
 import imageio.v2 as imageio
 import numpy as np
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 class RobosuiteVisualCorsiDataset:
     """Loads pre-exported robosuite Corsi samples from a dataset root."""
@@ -61,10 +63,38 @@ class RobosuiteVisualCorsiDataset:
         return self.camera_name
 
     def _load_frame_stack(self, paths: Sequence[str]) -> np.ndarray:
-        frames = [imageio.imread(Path(path)) for path in paths]
+        frames = [imageio.imread(self._resolve_frame_path(path)) for path in paths]
         if not frames:
             raise ValueError("Expected at least one frame path")
         return np.stack(frames, axis=0)
+
+    def _resolve_frame_path(self, path: str | Path) -> Path:
+        candidate = Path(path)
+        if candidate.exists():
+            return candidate
+
+        if not candidate.is_absolute():
+            repo_relative = REPO_ROOT / candidate
+            if repo_relative.exists():
+                return repo_relative
+            root_relative = self.dataset_root / candidate
+            if root_relative.exists():
+                return root_relative
+
+        parts = candidate.parts
+        if self.dataset_root.name in parts:
+            root_index = parts.index(self.dataset_root.name)
+            root_relative = self.dataset_root.joinpath(*parts[root_index + 1 :])
+            if root_relative.exists():
+                return root_relative
+
+        if "corsi_artifacts" in parts:
+            artifact_index = parts.index("corsi_artifacts")
+            artifact_relative = REPO_ROOT.joinpath(*parts[artifact_index:])
+            if artifact_relative.exists():
+                return artifact_relative
+
+        return candidate
 
     def __getitem__(self, index: int) -> Dict[str, object]:
         sample = self.samples[index]
