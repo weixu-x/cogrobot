@@ -9,6 +9,8 @@ from typing import Dict, Optional, Sequence
 import imageio.v2 as imageio
 import numpy as np
 
+from corsi.heatmaps import sequence_to_target_heatmaps
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -21,10 +23,16 @@ class RobosuiteVisualCorsiDataset:
         *,
         camera_name: Optional[str] = None,
         include_reset_frame: bool = False,
+        heatmap_size: int = 32,
+        heatmap_sigma: float = 2.0,
+        heatmap_normalize: bool = True,
     ) -> None:
         self.dataset_root = Path(dataset_root)
         self.camera_name = camera_name
         self.include_reset_frame = bool(include_reset_frame)
+        self.heatmap_size = int(heatmap_size)
+        self.heatmap_sigma = float(heatmap_sigma)
+        self.heatmap_normalize = bool(heatmap_normalize)
 
         if not self.dataset_root.exists():
             raise FileNotFoundError(f"Dataset root does not exist: {self.dataset_root}")
@@ -117,13 +125,21 @@ class RobosuiteVisualCorsiDataset:
 
         target_length = int(sample["length"])
         frame_length = int(frames.shape[0])
+        targets = list(sample["sequence"])
+        target_heatmaps = sequence_to_target_heatmaps(
+            targets,
+            size=self.heatmap_size,
+            sigma=self.heatmap_sigma,
+            normalize=self.heatmap_normalize,
+        )
 
         return {
             "dataset_name": self.dataset_name,
             "split_name": self.split_name,
             "trial_id": str(sample["trial_id"]),
             "frames": frames,
-            "targets": list(sample["sequence"]),
+            "targets": targets,
+            "target_heatmaps": target_heatmaps,
             "length": target_length,
             "target_length": target_length,
             "frame_length": frame_length,

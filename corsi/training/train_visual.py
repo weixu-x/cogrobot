@@ -13,18 +13,19 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-import numpy as np
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+import imageio.v2 as imageio
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Subset
 
 from corsi.analysis.metrics import summarize_sequence_metrics
 from corsi.data import RobosuiteVisualCorsiDataset, collate_visual_batch
+from corsi.heatmaps import nearest_block_decode, spatial_heatmap_loss
 from corsi.models.attention import (
     CapacityGateConfig,
     LocalAttentionConfig,
@@ -57,6 +58,7 @@ class TrainVisualConfig:
     num_layers: int = 1
     dropout: float = 0.0
     input_image_size: int = 128
+    output_type: str = "index"
     use_attention: bool = False
     attention_dim: int = 128
     attention_type: str = "global"
@@ -80,6 +82,12 @@ class TrainVisualConfig:
     return_hidden_traces: bool = False
     return_error_analysis: bool = False
     analysis_output_dir: str = ""
+    heatmap_size: int = 32
+    heatmap_sigma: float = 2.0
+    heatmap_normalize: bool = True
+    heatmap_loss: str = "spatial_ce"
+    heatmap_decode_method: str = "argmax"
+    heatmap_visualization_samples: int = 4
     seed: int = 7
     device: str = "auto"
     output_dir: str = "corsi_artifacts/visual_base/training/visual_lstm"
@@ -96,11 +104,12 @@ def normalize_config_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
 
     model_overrides = normalized.pop("model", None)
     if isinstance(model_overrides, dict):
-        if "use_attention" in model_overrides:
-            normalized["use_attention"] = model_overrides["use_attention"]
-        if "use_step_embedding" in model_overrides:
-            normalized["use_step_embedding"] = model_overrides["use_step_embedding"]
         for key in (
+            "output_type",
+            "use_attention",
+            "use_step_embedding",
+            "max_decode_steps",
+            "step_embedding_dim",
             "attention_type",
             "attention_temperature",
             "local_attention",
@@ -129,6 +138,19 @@ def normalize_config_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
             if source_key in training_overrides:
                 normalized[target_key] = training_overrides[source_key]
 
+    heatmap_overrides = normalized.pop("heatmap", None)
+    if isinstance(heatmap_overrides, dict):
+        alias_map = {
+            "size": "heatmap_size",
+            "sigma": "heatmap_sigma",
+            "normalize": "heatmap_normalize",
+            "loss": "heatmap_loss",
+            "decode_method": "heatmap_decode_method",
+        }
+        for source_key, target_key in alias_map.items():
+            if source_key in heatmap_overrides:
+                normalized[target_key] = heatmap_overrides[source_key]
+
     if "use_scheduled_sampling" in normalized:
         normalized["scheduled_sampling"] = normalized.pop("use_scheduled_sampling")
 
@@ -141,10 +163,63 @@ def normalize_config_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
     return normalized
 
 
+def parse_simple_yaml_scalar(value: str) -> Any:
+    value = value.strip()
+    if value in {"true", "True"}:
+        return True
+    if value in {"false", "False"}:
+        return False
+    if value in {"null", "None", "~"}:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        return value.strip("\"'")
+
+
+def load_simple_yaml_config(text: str) -> Dict[str, Any]:
+    """Minimal YAML reader for the flat/nested scalar config files used here."""
+
+    root: Dict[str, Any] = {}
+    current_parent: Dict[str, Any] | None = None
+    for raw_line in text.splitlines():
+        line = raw_line.split("#", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if ":" not in line:
+            raise ValueError(f"Unsupported YAML line: {raw_line}")
+        key, value = line.strip().split(":", 1)
+        if indent == 0:
+            if value.strip():
+                root[key] = parse_simple_yaml_scalar(value)
+                current_parent = None
+            else:
+                current_parent = {}
+                root[key] = current_parent
+        elif indent == 2 and current_parent is not None:
+            current_parent[key] = parse_simple_yaml_scalar(value)
+        else:
+            raise ValueError(f"Unsupported YAML indentation: {raw_line}")
+    return root
+
+
 def load_config_overrides(config_path: str) -> Dict[str, object]:
     path = Path(config_path)
     with open(path, "r", encoding="utf-8") as handle:
-        data = json.load(handle)
+        if path.suffix.lower() in {".yaml", ".yml"}:
+            try:
+                import yaml
+            except ModuleNotFoundError:
+                data = load_simple_yaml_config(handle.read())
+            else:
+                data = yaml.safe_load(handle)
+        else:
+            data = json.load(handle)
     if not isinstance(data, dict):
         raise ValueError("Config file must contain a JSON object")
     base_config = data.pop("base_config", "")
@@ -183,6 +258,7 @@ def parse_args() -> TrainVisualConfig:
     parser.add_argument("--num-layers", type=int, default=defaults["num_layers"])
     parser.add_argument("--dropout", type=float, default=defaults["dropout"])
     parser.add_argument("--input-image-size", type=int, default=defaults["input_image_size"])
+    parser.add_argument("--output-type", type=str, default=defaults["output_type"], choices=["index", "heatmap"])
     parser.add_argument(
         "--use-attention",
         action=argparse.BooleanOptionalAction,
@@ -256,6 +332,25 @@ def parse_args() -> TrainVisualConfig:
         default=defaults["return_error_analysis"],
     )
     parser.add_argument("--analysis-output-dir", type=str, default=defaults["analysis_output_dir"])
+    parser.add_argument("--heatmap-size", type=int, default=defaults["heatmap_size"])
+    parser.add_argument("--heatmap-sigma", type=float, default=defaults["heatmap_sigma"])
+    parser.add_argument(
+        "--heatmap-normalize",
+        action=argparse.BooleanOptionalAction,
+        default=defaults["heatmap_normalize"],
+    )
+    parser.add_argument("--heatmap-loss", type=str, default=defaults["heatmap_loss"], choices=["spatial_ce", "mse"])
+    parser.add_argument(
+        "--heatmap-decode-method",
+        type=str,
+        default=defaults["heatmap_decode_method"],
+        choices=["argmax"],
+    )
+    parser.add_argument(
+        "--heatmap-visualization-samples",
+        type=int,
+        default=defaults["heatmap_visualization_samples"],
+    )
     parser.add_argument("--seed", type=int, default=defaults["seed"])
     parser.add_argument("--device", type=str, default=defaults["device"], choices=["auto", "cpu", "mps", "cuda"])
     parser.add_argument("--output-dir", type=str, default=defaults["output_dir"])
@@ -300,6 +395,7 @@ def build_model_config(train_config: TrainVisualConfig) -> VisualLSTMConfig:
         num_layers=train_config.num_layers,
         dropout=train_config.dropout,
         input_image_size=train_config.input_image_size,
+        output_type=train_config.output_type,
         use_attention=train_config.use_attention,
         attention_dim=train_config.attention_dim,
         attention_type=train_config.attention_type,
@@ -317,6 +413,7 @@ def build_model_config(train_config: TrainVisualConfig) -> VisualLSTMConfig:
         blank_feature_mode=train_config.blank_feature_mode,
         return_hidden_traces=train_config.return_hidden_traces,
         return_error_analysis=train_config.return_error_analysis,
+        heatmap_size=train_config.heatmap_size,
     )
 
 
@@ -358,6 +455,8 @@ def move_batch_to_device(batch: Dict[str, object], device: torch.device) -> Dict
     moved["original_frame_lengths"] = batch["original_frame_lengths"].to(device)
     moved["target_lengths"] = batch["target_lengths"].to(device)
     moved["mask"] = batch["mask"].to(device)
+    if batch.get("target_heatmaps") is not None:
+        moved["target_heatmaps"] = batch["target_heatmaps"].to(device)
     return moved
 
 
@@ -375,6 +474,24 @@ def split_dataset(dataset, val_ratio: float, seed: int) -> tuple[Subset, Subset]
     return torch.utils.data.random_split(dataset, [train_size, val_size], generator=generator)
 
 
+def compute_loss(
+    *,
+    config: TrainVisualConfig,
+    outputs: Dict[str, Any],
+    batch: Dict[str, object],
+    loss_fn,
+) -> torch.Tensor:
+    if config.output_type == "index":
+        logits = outputs["logits"]
+        return loss_fn(logits.reshape(-1, logits.size(-1)), batch["targets"].reshape(-1))
+    return spatial_heatmap_loss(
+        outputs["heatmap_logits"],
+        batch["target_heatmaps"],
+        batch["mask"],
+        loss_type=config.heatmap_loss,
+    )
+
+
 def run_epoch(
     model,
     loader,
@@ -386,6 +503,7 @@ def run_epoch(
     delay_mode: str,
     delay_steps: int,
     blank_feature_mode: str,
+    config: TrainVisualConfig,
     teacher_forcing_ratio: float = 1.0,
     global_step: int = 0,
 ) -> Dict[str, float]:
@@ -406,8 +524,7 @@ def run_epoch(
             return_hidden_traces=False,
             teacher_forcing_ratio=teacher_forcing_ratio if training else 1.0,
         )
-        logits = outputs["logits"]
-        loss = loss_fn(logits.reshape(-1, logits.size(-1)), batch["targets"].reshape(-1))
+        loss = compute_loss(config=config, outputs=outputs, batch=batch, loss_fn=loss_fn)
 
         if training:
             if optimizer is None:
@@ -533,6 +650,99 @@ def save_hidden_traces(
     return trace_path
 
 
+def pad_to_max_steps(tensor, *, max_steps: int, fill_value):
+    if tensor.size(1) == max_steps:
+        return tensor
+    pad_width = max_steps - tensor.size(1)
+    pad_shape = (tensor.size(0), pad_width, *tensor.shape[2:])
+    padding = torch.full(pad_shape, fill_value, dtype=tensor.dtype)
+    return torch.cat([tensor, padding], dim=1)
+
+
+def heatmap_spatial_metrics(pred_xy, targets, mask, block_xy, *, radius: float) -> Dict[str, float]:
+    target_xy = block_xy[targets.clamp(0, block_xy.size(0) - 1)]
+    errors = torch.linalg.norm(pred_xy.float() - target_xy.float(), dim=-1)
+    active_errors = errors[mask]
+    if int(active_errors.numel()) == 0:
+        return {
+            "mean_spatial_error": 0.0,
+            "median_spatial_error": 0.0,
+            "within_radius_accuracy": 0.0,
+        }
+    return {
+        "mean_spatial_error": float(active_errors.mean().item()),
+        "median_spatial_error": float(active_errors.median().item()),
+        "within_radius_accuracy": float((active_errors <= float(radius)).float().mean().item()),
+    }
+
+
+def normalize_heatmap_image(heatmap: np.ndarray) -> np.ndarray:
+    values = np.asarray(heatmap, dtype=np.float32)
+    min_value = float(values.min())
+    max_value = float(values.max())
+    if max_value > min_value:
+        values = (values - min_value) / (max_value - min_value)
+    else:
+        values = np.zeros_like(values)
+    return (values * 255.0).clip(0, 255).astype(np.uint8)
+
+
+def save_heatmap_visualizations(
+    *,
+    output_dir: Path,
+    epoch: int,
+    batch: Dict[str, object],
+    decode_outputs: Dict[str, torch.Tensor],
+    max_samples: int,
+    already_saved: int,
+) -> int:
+    if max_samples <= already_saved:
+        return already_saved
+    viz_dir = output_dir / "heatmap_visualizations" / f"epoch_{epoch:03d}"
+    viz_dir.mkdir(parents=True, exist_ok=True)
+
+    frames = batch["frames"].detach().cpu()
+    targets = batch["targets"].detach().cpu()
+    target_heatmaps = batch["target_heatmaps"].detach().cpu()
+    predictions = decode_outputs["predictions"].detach().cpu()
+    pred_heatmaps = decode_outputs["heatmap_logits"].detach().cpu()
+
+    for batch_index in range(frames.size(0)):
+        if already_saved >= max_samples:
+            break
+        sample_dir = viz_dir / f"sample_{already_saved:03d}_{batch['trial_ids'][batch_index]}"
+        sample_dir.mkdir(parents=True, exist_ok=True)
+        length = int(batch["target_lengths"][batch_index].item())
+        steps = []
+        for step_index in range(length):
+            frame = frames[batch_index, step_index].permute(1, 2, 0).numpy()
+            frame_u8 = (frame * 255.0).clip(0, 255).astype(np.uint8)
+            target_heatmap_u8 = normalize_heatmap_image(target_heatmaps[batch_index, step_index].numpy())
+            pred_heatmap_u8 = normalize_heatmap_image(pred_heatmaps[batch_index, step_index, 0].numpy())
+            imageio.imwrite(sample_dir / f"input_frame_step_{step_index:02d}.png", frame_u8)
+            imageio.imwrite(sample_dir / f"target_heatmap_step_{step_index:02d}.png", target_heatmap_u8)
+            imageio.imwrite(sample_dir / f"predicted_heatmap_step_{step_index:02d}.png", pred_heatmap_u8)
+            steps.append(
+                {
+                    "step": step_index,
+                    "target_index": int(targets[batch_index, step_index].item()),
+                    "predicted_nearest_index": int(predictions[batch_index, step_index].item()),
+                }
+            )
+        with open(sample_dir / "metadata.json", "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "trial_id": batch["trial_ids"][batch_index],
+                    "camera_name": batch["camera_names"][batch_index],
+                    "steps": steps,
+                },
+                handle,
+                indent=2,
+            )
+        already_saved += 1
+    return already_saved
+
+
 @torch.no_grad()
 def evaluate_model(
     model,
@@ -540,12 +750,9 @@ def evaluate_model(
     loss_fn,
     device,
     *,
-    delay_mode: str,
-    delay_steps: int,
-    blank_feature_mode: str,
-    return_hidden_traces: bool,
-    analysis_output_dir: Optional[Path],
-    epoch: Optional[int],
+    config: TrainVisualConfig,
+    output_dir: Path,
+    epoch: int,
 ) -> Dict[str, object]:
     model.eval()
     epoch_stats = run_epoch(
@@ -555,9 +762,10 @@ def evaluate_model(
         loss_fn=loss_fn,
         device=device,
         training=False,
-        delay_mode=delay_mode,
-        delay_steps=delay_steps,
-        blank_feature_mode=blank_feature_mode,
+        delay_mode=config.delay_mode,
+        delay_steps=config.delay_steps,
+        blank_feature_mode=config.blank_feature_mode,
+        config=config,
     )
 
     predictions_all = []
@@ -567,22 +775,38 @@ def evaluate_model(
     masks_all = []
     trace_samples: list[Dict[str, Any]] = []
     trace_quota = {length: TRACE_SAMPLES_PER_LENGTH for length in LENGTH_RANGE}
+    pred_xy_all = []
+    visualizations_saved = 0
 
     for batch in loader:
         batch = move_batch_to_device(batch, device)
-        need_traces = return_hidden_traces and any(quota > 0 for quota in trace_quota.values())
+        need_traces = (
+            config.return_hidden_traces
+            and config.output_type == "index"
+            and any(quota > 0 for quota in trace_quota.values())
+        )
         decode_outputs = model.greedy_decode(
             frames=batch["frames"],
             frame_lengths=batch["frame_lengths"],
             target_lengths=batch["target_lengths"],
             max_steps=batch["targets"].size(1),
-            delay_mode=delay_mode,
-            delay_steps=delay_steps,
-            blank_feature_mode=blank_feature_mode,
+            delay_mode=config.delay_mode,
+            delay_steps=config.delay_steps,
+            blank_feature_mode=config.blank_feature_mode,
             return_hidden_traces=need_traces,
         )
-
-        if need_traces:
+        if config.output_type == "heatmap":
+            predictions = decode_outputs["predictions"]
+            pred_xy_all.append(decode_outputs["heatmap_xy"].cpu())
+            visualizations_saved = save_heatmap_visualizations(
+                output_dir=output_dir,
+                epoch=epoch,
+                batch=batch,
+                decode_outputs=decode_outputs,
+                max_samples=config.heatmap_visualization_samples,
+                already_saved=visualizations_saved,
+            )
+        elif need_traces:
             predictions = decode_outputs["predictions"]
             trace_samples.extend(
                 extract_trace_samples(
@@ -594,7 +818,6 @@ def evaluate_model(
             )
         else:
             predictions = decode_outputs
-
         predictions_all.append(predictions.cpu())
         targets_all.append(batch["targets"].cpu())
         target_lengths_all.append(batch["target_lengths"].cpu())
@@ -625,13 +848,36 @@ def evaluate_model(
         min_length=min(LENGTH_RANGE),
         max_length=max(LENGTH_RANGE),
     )
+    if config.output_type == "heatmap":
+        pred_xy = torch.cat(
+            [pad_to_max_steps(tensor, max_steps=max_steps, fill_value=0) for tensor in pred_xy_all],
+            dim=0,
+        )
+        _, nearest_distances = nearest_block_decode(
+            pred_xy,
+            block_xy=model.block_heatmap_xy.detach().cpu(),
+        )
+        metrics.update(
+            heatmap_spatial_metrics(
+                pred_xy,
+                targets,
+                mask,
+                model.block_heatmap_xy.detach().cpu(),
+                radius=config.heatmap_sigma,
+            )
+        )
+        metrics["mean_nearest_block_distance"] = float(nearest_distances[mask].float().mean().item())
+        metrics["heatmap_visualization_dir"] = str(
+            output_dir / "heatmap_visualizations" / f"epoch_{epoch:03d}"
+        )
     metrics["loss"] = epoch_stats["loss"]
-    metrics["delay_mode"] = delay_mode
-    metrics["delay_steps"] = int(delay_steps)
-    metrics["blank_feature_mode"] = blank_feature_mode
+    metrics["delay_mode"] = config.delay_mode
+    metrics["delay_steps"] = int(config.delay_steps)
+    metrics["blank_feature_mode"] = config.blank_feature_mode
     metrics["frame_length_mean"] = float(frame_lengths.float().mean().item())
 
-    if return_hidden_traces and analysis_output_dir is not None and epoch is not None:
+    analysis_output_dir = Path(config.analysis_output_dir) if config.analysis_output_dir else None
+    if config.return_hidden_traces and analysis_output_dir is not None and config.output_type == "index":
         trace_path = save_hidden_traces(analysis_output_dir, epoch=epoch, trace_samples=trace_samples)
         if trace_path is not None:
             metrics["hidden_trace_path"] = str(trace_path)
@@ -746,6 +992,7 @@ def validate_resume_compatibility(
         "num_layers",
         "dropout",
         "input_image_size",
+        "output_type",
         "use_attention",
         "attention_dim",
         "attention_type",
@@ -761,6 +1008,11 @@ def validate_resume_compatibility(
         "delay_mode",
         "delay_steps",
         "blank_feature_mode",
+        "heatmap_size",
+        "heatmap_sigma",
+        "heatmap_normalize",
+        "heatmap_loss",
+        "heatmap_decode_method",
     ]
     mismatches = []
     current_args = asdict(config)
@@ -987,12 +1239,18 @@ def build_datasets(config: TrainVisualConfig):
         config.dataset_root,
         camera_name=config.camera_name,
         include_reset_frame=config.include_reset_frame,
+        heatmap_size=config.heatmap_size,
+        heatmap_sigma=config.heatmap_sigma,
+        heatmap_normalize=config.heatmap_normalize,
     )
     if config.val_dataset_root:
         val_dataset = RobosuiteVisualCorsiDataset(
             config.val_dataset_root,
             camera_name=config.camera_name,
             include_reset_frame=config.include_reset_frame,
+            heatmap_size=config.heatmap_size,
+            heatmap_sigma=config.heatmap_sigma,
+            heatmap_normalize=config.heatmap_normalize,
         )
         return train_dataset, val_dataset
     return split_dataset(train_dataset, config.val_ratio, config.seed)
@@ -1002,6 +1260,16 @@ def main() -> None:
     config = parse_args()
     if config.resume and config.init_model:
         raise ValueError("--resume and --init_model cannot be used together")
+    if config.output_type == "heatmap" and config.use_attention:
+        raise ValueError("Heatmap output mode requires model.use_attention=false")
+    if config.output_type == "heatmap" and config.scheduled_sampling:
+        raise ValueError("Scheduled sampling must be disabled for heatmap mode")
+    if config.heatmap_decode_method != "argmax":
+        raise ValueError("Only heatmap.decode_method='argmax' is supported")
+    if config.heatmap_size < 2:
+        raise ValueError("--heatmap-size must be >= 2")
+    if config.heatmap_sigma <= 0:
+        raise ValueError("--heatmap-sigma must be > 0")
     if config.delay_steps < 0:
         raise ValueError("--delay-steps must be >= 0")
     if config.max_decode_steps < 1:
@@ -1109,6 +1377,7 @@ def main() -> None:
             blank_feature_mode=config.blank_feature_mode,
             teacher_forcing_ratio=teacher_forcing_ratio,
             global_step=global_step,
+            config=config,
         )
         global_step = int(train_stats["global_step"])
         val_metrics = evaluate_model(
@@ -1116,11 +1385,8 @@ def main() -> None:
             val_loader,
             loss_fn,
             device,
-            delay_mode=config.delay_mode,
-            delay_steps=config.delay_steps,
-            blank_feature_mode=config.blank_feature_mode,
-            return_hidden_traces=config.return_hidden_traces,
-            analysis_output_dir=analysis_output_dir,
+            config=config,
+            output_dir=output_dir,
             epoch=epoch,
         )
 
@@ -1128,6 +1394,7 @@ def main() -> None:
             "epoch": epoch,
             "train_loss": round(float(train_stats["loss"]), 6),
             "val_loss": round(float(val_metrics["loss"]), 6),
+            "output_type": config.output_type,
             "token_acc": round(float(val_metrics["token_accuracy"]), 6),
             "full_seq_acc": round(float(val_metrics["full_sequence_accuracy"]), 6),
             "token_accuracy": round(float(val_metrics["token_accuracy"]), 6),
@@ -1165,6 +1432,14 @@ def main() -> None:
             epoch_record["hidden_trace_path"] = val_metrics["hidden_trace_path"]
             epoch_record["hidden_trace_sample_count"] = int(val_metrics.get("hidden_trace_sample_count", 0))
 
+        if config.output_type == "heatmap":
+            epoch_record.update(
+                {
+                    "mean_spatial_error": round(float(val_metrics["mean_spatial_error"]), 6),
+                    "median_spatial_error": round(float(val_metrics["median_spatial_error"]), 6),
+                    "within_radius_accuracy": round(float(val_metrics["within_radius_accuracy"]), 6),
+                }
+            )
         print(json.dumps(epoch_record))
         append_epoch_log(output_dir, epoch_record)
         save_metrics_snapshot(
@@ -1246,6 +1521,7 @@ def main() -> None:
             "best_epoch": best_epoch,
             "best_full_seq_acc": best_metric,
             "best_full_sequence_accuracy": best_metric,
+            "output_type": config.output_type,
             "best_token_acc": float(best_metrics.get("token_accuracy", 0.0)),
             "best_token_accuracy": float(best_metrics.get("token_accuracy", 0.0)),
             "best_per_length": best_metrics.get("per_length", {}),
@@ -1274,6 +1550,13 @@ def main() -> None:
             "early_stopping_patience": int(config.early_stopping_patience),
             "checkpoint_path": str(get_best_checkpoint_path(checkpoint_dir)),
             "analysis_output_dir": str(analysis_output_dir),
+            "heatmap": {
+                "size": int(config.heatmap_size),
+                "sigma": float(config.heatmap_sigma),
+                "normalize": bool(config.heatmap_normalize),
+                "loss": config.heatmap_loss,
+                "decode_method": config.heatmap_decode_method,
+            },
             "best_metrics": best_metrics,
         }
     )

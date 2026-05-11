@@ -21,6 +21,8 @@ from corsi.models.attention import (
     build_attention_config,
 )
 
+from corsi.heatmaps import decode_heatmap_argmax, nearest_block_decode, standard_block_heatmap_xy
+
 
 @dataclass
 class VisualLSTMConfig:
@@ -33,6 +35,7 @@ class VisualLSTMConfig:
     num_blocks: int = 9
     target_pad_value: int = -100
     input_image_size: int = 128
+    output_type: str = "index"
     use_attention: bool = False
     attention_dim: int = 128
     attention_type: str = "global"
@@ -50,6 +53,7 @@ class VisualLSTMConfig:
     blank_feature_mode: str = "zero_feature"
     return_hidden_traces: bool = False
     return_error_analysis: bool = False
+    heatmap_size: int = 32
 
     @property
     def start_token_id(self) -> int:
@@ -93,12 +97,55 @@ class FrameCNNEncoder(nn.Module):
         return self.backbone(frames).flatten(start_dim=1)
 
 
+class HeatmapHead(nn.Module):
+    """Projects decoder hidden states into spatial heatmap logits."""
+
+    def __init__(self, hidden_dim: int, heatmap_size: int) -> None:
+        super().__init__()
+        self.heatmap_size = int(heatmap_size)
+        self.base_size = 4
+        self.base_channels = 64
+        self.proj = nn.Linear(hidden_dim, self.base_channels * self.base_size * self.base_size)
+        self.upsample = nn.Sequential(
+            nn.ConvTranspose2d(self.base_channels, 32, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 1, kernel_size=4, stride=2, padding=1),
+        )
+
+    def forward(self, hidden: Tensor) -> Tensor:
+        batch_size, steps, hidden_dim = hidden.shape
+        flat_hidden = hidden.reshape(batch_size * steps, hidden_dim)
+        features = self.proj(flat_hidden).reshape(
+            batch_size * steps,
+            self.base_channels,
+            self.base_size,
+            self.base_size,
+        )
+        logits = self.upsample(features)
+        if logits.size(-1) != self.heatmap_size or logits.size(-2) != self.heatmap_size:
+            logits = F.interpolate(
+                logits,
+                size=(self.heatmap_size, self.heatmap_size),
+                mode="bilinear",
+                align_corners=False,
+            )
+        return logits.reshape(batch_size, steps, 1, self.heatmap_size, self.heatmap_size)
+
+
 class VisualSeq2SeqLSTM(nn.Module):
     """CNN encoder + encoder-LSTM + decoder-LSTM sequence recall baseline."""
 
     def __init__(self, config: VisualLSTMConfig) -> None:
         super().__init__()
         self.config = config
+        if config.output_type not in {"index", "heatmap"}:
+            raise ValueError("output_type must be 'index' or 'heatmap'")
+        if config.output_type == "heatmap" and config.use_attention:
+            raise ValueError("Heatmap output mode requires use_attention=False")
+        if config.heatmap_size < 2:
+            raise ValueError("heatmap_size must be >= 2")
 
         rnn_dropout = config.dropout if config.num_layers > 1 else 0.0
         decoder_input_dim = config.token_embedding_dim + (
@@ -135,6 +182,15 @@ class VisualSeq2SeqLSTM(nn.Module):
             else None
         )
         self.output_head = nn.Linear(config.hidden_dim, config.num_blocks)
+        self.heatmap_head = HeatmapHead(config.hidden_dim, config.heatmap_size)
+        self.register_buffer(
+            "block_heatmap_xy",
+            torch.as_tensor(
+                standard_block_heatmap_xy(config.heatmap_size, num_blocks=config.num_blocks),
+                dtype=torch.float32,
+            ),
+            persistent=False,
+        )
 
         # Backward-compatible aliases for any external code that still uses the old names.
         self.encoder = self.encoder_lstm
@@ -438,7 +494,12 @@ class VisualSeq2SeqLSTM(nn.Module):
             decoder_emb = self.token_embedding(decoder_inputs)
             decoder_outputs, final_state = self.decoder_lstm(decoder_emb, encoder_state)
             payload: Dict[str, Tensor] = {
-                "logits": self.output_head(decoder_outputs),
+                "logits": self.output_head(decoder_outputs)
+                if self.config.output_type == "index"
+                else None,
+                "heatmap_logits": self.heatmap_head(decoder_outputs)
+                if self.config.output_type == "heatmap"
+                else None,
                 "decoder_final_hidden": self._top_hidden(final_state),
             }
             if return_traces:
@@ -446,7 +507,9 @@ class VisualSeq2SeqLSTM(nn.Module):
             return payload
 
         if max_steps is None:
-            if target_lengths is not None:
+            if targets is not None:
+                max_steps = int(targets.size(1))
+            elif target_lengths is not None:
                 max_steps = int(target_lengths.max().item())
             else:
                 raise ValueError("decode_autoregressive requires target_lengths or max_steps for greedy decoding")
@@ -462,6 +525,9 @@ class VisualSeq2SeqLSTM(nn.Module):
         )
         predictions = []
         logits_steps = []
+        heatmap_logits_steps = []
+        heatmap_xy_steps = []
+        spatial_error_steps = []
         decoder_hidden_trace = []
         attention_trace = []
         attention_entropy_trace = []
@@ -494,9 +560,20 @@ class VisualSeq2SeqLSTM(nn.Module):
                 encoder_mask=encoder_mask,
                 previous_outputs_mask=previous_outputs_mask,
             )
-            next_tokens = step_logits.argmax(dim=-1)
+            if self.config.output_type == "index":
+                next_tokens = step_logits.argmax(dim=-1)
+                logits_steps.append(step_logits)
+            else:
+                step_heatmap_logits = self.heatmap_head(step_hidden.unsqueeze(1))[:, -1]
+                step_xy = decode_heatmap_argmax(step_heatmap_logits.unsqueeze(1))[:, -1]
+                next_tokens, step_distances = nearest_block_decode(
+                    step_xy,
+                    block_xy=self.block_heatmap_xy,
+                )
+                heatmap_logits_steps.append(step_heatmap_logits)
+                heatmap_xy_steps.append(step_xy)
+                spatial_error_steps.append(step_distances)
             predictions.append(next_tokens)
-            logits_steps.append(step_logits)
             emitted_tokens = next_tokens
             if targets is not None and teacher_forcing_ratio >= 1.0 and step_index < targets.size(1):
                 emitted_tokens = targets[:, step_index]
@@ -529,7 +606,18 @@ class VisualSeq2SeqLSTM(nn.Module):
 
         payload = {
             "predictions": torch.stack(predictions, dim=1),
-            "logits": torch.stack(logits_steps, dim=1),
+            "logits": torch.stack(logits_steps, dim=1)
+            if self.config.output_type == "index"
+            else None,
+            "heatmap_logits": torch.stack(heatmap_logits_steps, dim=1)
+            if self.config.output_type == "heatmap"
+            else None,
+            "heatmap_xy": torch.stack(heatmap_xy_steps, dim=1)
+            if self.config.output_type == "heatmap"
+            else None,
+            "nearest_distances": torch.stack(spatial_error_steps, dim=1)
+            if self.config.output_type == "heatmap"
+            else None,
             "decoder_final_hidden": hidden[-1],
             "attention_weights": torch.stack(attention_trace, dim=1) if attention_trace else None,
         }
@@ -619,7 +707,10 @@ class VisualSeq2SeqLSTM(nn.Module):
             return_traces=resolved_return_traces,
             teacher_forcing_ratio=teacher_forcing_ratio,
         )
-        payload: Dict[str, Any] = {"logits": decoder_outputs["logits"]}
+        payload: Dict[str, Any] = {
+            "logits": decoder_outputs["logits"],
+            "heatmap_logits": decoder_outputs.get("heatmap_logits"),
+        }
         if decoder_outputs.get("attention_weights") is not None:
             payload["attention_weights"] = decoder_outputs["attention_weights"]
         if resolved_return_traces:
@@ -681,6 +772,22 @@ class VisualSeq2SeqLSTM(nn.Module):
             return_traces=resolved_return_traces,
         )
         predictions = decoder_outputs["predictions"]
+        if self.config.output_type == "heatmap":
+            payload: Dict[str, Any] = {
+                "predictions": predictions,
+                "heatmap_logits": decoder_outputs["heatmap_logits"],
+                "heatmap_xy": decoder_outputs["heatmap_xy"],
+                "nearest_distances": decoder_outputs["nearest_distances"],
+            }
+            if resolved_return_traces:
+                payload["hidden_traces"] = self._compose_hidden_traces(
+                    encoder_traces=encoder_traces,
+                    delay_traces=delay_traces,
+                    decoder_outputs=decoder_outputs,
+                    frame_lengths=frame_lengths,
+                    target_lengths=target_lengths,
+                )
+            return payload
         if not resolved_return_traces:
             return predictions
         return {

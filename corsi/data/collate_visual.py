@@ -50,6 +50,14 @@ def collate_visual_batch(
         dtype=torch.float32,
     )
     targets_pad = torch.full((len(batch), max_target_length), target_pad_value, dtype=torch.long)
+    sample_heatmaps = batch[0].get("target_heatmaps")
+    target_heatmaps_pad = None
+    if sample_heatmaps is not None:
+        heatmap_height, heatmap_width = sample_heatmaps.shape[-2:]
+        target_heatmaps_pad = torch.zeros(
+            (len(batch), max_target_length, heatmap_height, heatmap_width),
+            dtype=torch.float32,
+        )
     mask = torch.zeros((len(batch), max_target_length), dtype=torch.bool)
 
     trial_ids: List[str] = []
@@ -66,6 +74,9 @@ def collate_visual_batch(
 
         frames_pad[batch_index, :sample_frame_length] = frames[:sample_frame_length]
         targets_pad[batch_index, :sample_target_length] = targets[:sample_target_length]
+        if target_heatmaps_pad is not None:
+            heatmaps = torch.tensor(sample["target_heatmaps"], dtype=torch.float32)
+            target_heatmaps_pad[batch_index, :sample_target_length] = heatmaps[:sample_target_length]
         mask[batch_index, :sample_target_length] = True
 
         trial_ids.append(str(sample["trial_id"]))
@@ -80,6 +91,7 @@ def collate_visual_batch(
         "frame_lengths": frame_lengths,
         "original_frame_lengths": original_frame_lengths,
         "target_lengths": target_lengths,
+        "target_heatmaps": target_heatmaps_pad,
         "mask": mask,
         "trial_ids": trial_ids,
         "camera_names": camera_names,
