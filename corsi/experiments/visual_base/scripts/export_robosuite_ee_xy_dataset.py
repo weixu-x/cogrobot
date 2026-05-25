@@ -49,8 +49,11 @@ from corsi.scripts.export_robosuite_corsi_frames import (  # noqa: E402
 DEFAULT_DATASET_NAME = "freecam_ee_xy_v1_preview"
 DEFAULT_OUTPUT_DIR = f"corsi_artifacts/visual_base/datasets/{DEFAULT_DATASET_NAME}"
 EXHAUSTIVE_SEQUENCE_MODE = "exhaustive_no_consecutive_repeat"
+SAMPLED_SEQUENCE_MODE = "sampled_no_consecutive_repeat"
 LEN2_3_TRAIN_DATASET_NAME = "freecam_ee_xy_v1_len2_3_train"
 LEN2_3_VAL_DATASET_NAME = "freecam_ee_xy_v1_len2_3_val"
+LEN4_5_TRAIN_DATASET_NAME = "freecam_ee_xy_v1_len4_5_sampled_train"
+LEN4_5_VAL_DATASET_NAME = "freecam_ee_xy_v1_len4_5_sampled_val"
 LEN2_3_TOTALS = {
     "num_length_2_total": 72,
     "num_length_3_total": 576,
@@ -60,6 +63,18 @@ LEN2_3_TOTALS = {
 LEN2_3_SPLIT_COUNTS = {
     "train": {2: 54, 3: 460},
     "val": {2: 18, 3: 116},
+}
+LEN4_5_TOTALS = {
+    "num_length_4_full": 4608,
+    "num_length_5_full": 36864,
+    "full_length_4_count": 4608,
+    "full_length_5_count": 36864,
+    "num_train": 1300,
+    "num_val": 260,
+}
+LEN4_5_SAMPLED_COUNTS = {
+    "train": {4: 500, 5: 800},
+    "val": {4: 100, 5: 160},
 }
 
 
@@ -72,11 +87,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-trials", type=int, default=8)
     parser.add_argument("--seq-len-range", type=str, default="2,4")
     parser.add_argument("--sequences-json", type=str, default="")
-    parser.add_argument("--sequence-mode", type=str, default="random", choices=["random", EXHAUSTIVE_SEQUENCE_MODE])
+    parser.add_argument("--sequence-mode", type=str, default="random", choices=["random", EXHAUSTIVE_SEQUENCE_MODE, SAMPLED_SEQUENCE_MODE])
     parser.add_argument("--split-seed", type=int, default=2026)
+    parser.add_argument("--sample-seed", type=int, default=2026)
     parser.add_argument("--validate-against-dir", type=str, default="")
     parser.add_argument("--shard-index", "--shard-id", dest="shard_index", type=int, default=0)
     parser.add_argument("--num-shards", type=int, default=1)
+    parser.add_argument("--resume-existing", action="store_true")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--control-freq", type=int, default=20)
     parser.add_argument("--fps", type=int, default=20)
@@ -130,6 +147,46 @@ def exhaustive_no_consecutive_repeat_sequences(*, length: int, num_blocks: int =
     return sequences
 
 
+def count_no_consecutive_repeat_sequences(*, length: int, num_blocks: int = 9) -> int:
+    if length < 1:
+        raise ValueError("length must be at least 1")
+    return int(num_blocks * (num_blocks - 1) ** (length - 1))
+
+
+def random_no_consecutive_repeat_sequence(*, length: int, rng: random.Random, num_blocks: int = 9) -> tuple[int, ...]:
+    if length < 1:
+        raise ValueError("length must be at least 1")
+    sequence = [rng.randrange(num_blocks)]
+    for _ in range(1, length):
+        choices = [block_id for block_id in range(num_blocks) if block_id != sequence[-1]]
+        sequence.append(rng.choice(choices))
+    return tuple(sequence)
+
+
+def sample_unique_no_consecutive_repeat_sequences(
+    *,
+    length: int,
+    count: int,
+    rng: random.Random,
+    exclude: set[tuple[int, ...]] | None = None,
+    num_blocks: int = 9,
+) -> list[list[int]]:
+    excluded = set() if exclude is None else set(exclude)
+    full_count = count_no_consecutive_repeat_sequences(length=length, num_blocks=num_blocks)
+    if count + len(excluded) > full_count:
+        raise ValueError(
+            f"Requested {count} length-{length} samples with {len(excluded)} excluded, "
+            f"but only {full_count} valid sequences exist"
+        )
+    selected: set[tuple[int, ...]] = set()
+    while len(selected) < count:
+        sequence = random_no_consecutive_repeat_sequence(length=length, rng=rng, num_blocks=num_blocks)
+        if sequence in excluded or sequence in selected:
+            continue
+        selected.add(sequence)
+    return [list(sequence) for sequence in selected]
+
+
 def build_len2_3_exhaustive_split(split_seed: int) -> tuple[dict[str, list[list[int]]], dict[str, Any]]:
     rng = random.Random(int(split_seed))
     length_2 = exhaustive_no_consecutive_repeat_sequences(length=2)
@@ -161,6 +218,95 @@ def build_len2_3_exhaustive_split(split_seed: int) -> tuple[dict[str, list[list[
     }
     validate_exhaustive_split_definition(split_sequences, metadata)
     return split_sequences, metadata
+
+
+def build_len4_5_sampled_split(*, split_seed: int, sample_seed: int) -> tuple[dict[str, list[list[int]]], dict[str, Any]]:
+    sample_rng = random.Random(int(sample_seed))
+    split_rng = random.Random(int(split_seed))
+
+    train_len4 = sample_unique_no_consecutive_repeat_sequences(
+        length=4,
+        count=LEN4_5_SAMPLED_COUNTS["train"][4],
+        rng=sample_rng,
+    )
+    train_len5 = sample_unique_no_consecutive_repeat_sequences(
+        length=5,
+        count=LEN4_5_SAMPLED_COUNTS["train"][5],
+        rng=sample_rng,
+    )
+    train_len4_set = {tuple(sequence) for sequence in train_len4}
+    train_len5_set = {tuple(sequence) for sequence in train_len5}
+    val_len4 = sample_unique_no_consecutive_repeat_sequences(
+        length=4,
+        count=LEN4_5_SAMPLED_COUNTS["val"][4],
+        rng=sample_rng,
+        exclude=train_len4_set,
+    )
+    val_len5 = sample_unique_no_consecutive_repeat_sequences(
+        length=5,
+        count=LEN4_5_SAMPLED_COUNTS["val"][5],
+        rng=sample_rng,
+        exclude=train_len5_set,
+    )
+
+    split_sequences = {
+        "train": train_len4 + train_len5,
+        "val": val_len4 + val_len5,
+    }
+    for split_name in split_sequences:
+        split_rng.shuffle(split_sequences[split_name])
+
+    train_sequences = {tuple(sequence) for sequence in split_sequences["train"]}
+    val_sequences = {tuple(sequence) for sequence in split_sequences["val"]}
+    overlap = train_sequences & val_sequences
+    metadata = {
+        "sequence_mode": SAMPLED_SEQUENCE_MODE,
+        "allow_nonconsecutive_repeats": True,
+        "allow_consecutive_repeats": False,
+        **LEN4_5_TOTALS,
+        "sampled_length_4_train_count": len(train_len4),
+        "sampled_length_5_train_count": len(train_len5),
+        "sampled_length_4_val_count": len(val_len4),
+        "sampled_length_5_val_count": len(val_len5),
+        "split_seed": int(split_seed),
+        "sample_seed": int(sample_seed),
+        "train_val_overlap_count": len(overlap),
+        "split_counts_by_length": {
+            "train": {"4": len(train_len4), "5": len(train_len5)},
+            "val": {"4": len(val_len4), "5": len(val_len5)},
+        },
+    }
+    validate_sampled_split_definition(split_sequences, metadata)
+    return split_sequences, metadata
+
+
+def validate_sampled_split_definition(split_sequences: dict[str, list[list[int]]], metadata: dict[str, Any]) -> None:
+    length_4_total = count_no_consecutive_repeat_sequences(length=4)
+    length_5_total = count_no_consecutive_repeat_sequences(length=5)
+    if length_4_total != LEN4_5_TOTALS["num_length_4_full"]:
+        raise RuntimeError(f"Expected 4608 length-4 sequences, got {length_4_total}")
+    if length_5_total != LEN4_5_TOTALS["num_length_5_full"]:
+        raise RuntimeError(f"Expected 36864 length-5 sequences, got {length_5_total}")
+
+    train_sequences = {tuple(sequence) for sequence in split_sequences["train"]}
+    val_sequences = {tuple(sequence) for sequence in split_sequences["val"]}
+    if len(train_sequences) != LEN4_5_TOTALS["num_train"]:
+        raise RuntimeError(f"Expected {LEN4_5_TOTALS['num_train']} unique train sequences, got {len(train_sequences)}")
+    if len(val_sequences) != LEN4_5_TOTALS["num_val"]:
+        raise RuntimeError(f"Expected {LEN4_5_TOTALS['num_val']} unique val sequences, got {len(val_sequences)}")
+    overlap = train_sequences & val_sequences
+    if overlap:
+        raise RuntimeError(f"Train/val sequence overlap in sampled split: {sorted(overlap)[:5]}")
+    for split_name, expected_counts in LEN4_5_SAMPLED_COUNTS.items():
+        counts = {4: 0, 5: 0}
+        for sequence in split_sequences[split_name]:
+            if len(sequence) not in counts:
+                raise RuntimeError(f"{split_name} contains unsupported sequence length: {sequence}")
+            if has_consecutive_repeat(sequence):
+                raise RuntimeError(f"{split_name} contains consecutive repeat sequence: {sequence}")
+            counts[len(sequence)] += 1
+        if counts != expected_counts:
+            raise RuntimeError(f"{split_name} sampled counts {counts} != expected {expected_counts}")
 
 
 def validate_exhaustive_split_definition(split_sequences: dict[str, list[list[int]]], metadata: dict[str, Any]) -> None:
@@ -197,6 +343,7 @@ def load_sequences(
     sequence_mode: str,
     split_name: str,
     split_seed: int,
+    sample_seed: int,
 ) -> tuple[list[list[int]], dict[str, Any]]:
     if sequences_json:
         payload = json.loads(Path(sequences_json).read_text(encoding="utf-8"))
@@ -207,12 +354,22 @@ def load_sequences(
             "allow_nonconsecutive_repeats": True,
             "allow_consecutive_repeats": False,
             "split_seed": int(split_seed),
+            "sample_seed": int(sample_seed),
         }
 
     if sequence_mode == EXHAUSTIVE_SEQUENCE_MODE:
         if split_name not in {"train", "val"}:
             raise ValueError(f"{EXHAUSTIVE_SEQUENCE_MODE} requires --split-name train or --split-name val")
         split_sequences, split_metadata = build_len2_3_exhaustive_split(split_seed)
+        return split_sequences[split_name], split_metadata
+
+    if sequence_mode == SAMPLED_SEQUENCE_MODE:
+        if split_name not in {"train", "val"}:
+            raise ValueError(f"{SAMPLED_SEQUENCE_MODE} requires --split-name train or --split-name val")
+        split_sequences, split_metadata = build_len4_5_sampled_split(
+            split_seed=split_seed,
+            sample_seed=sample_seed,
+        )
         return split_sequences[split_name], split_metadata
 
     trials = generate_trial_collection(
@@ -225,6 +382,7 @@ def load_sequences(
         "allow_nonconsecutive_repeats": True,
         "allow_consecutive_repeats": False,
         "split_seed": int(split_seed),
+        "sample_seed": int(sample_seed),
     }
 
 
@@ -714,6 +872,8 @@ def dataset_manifest_payload(
             "local_window_offsets": parse_int_list(args.local_window_offsets),
             "save_trajectory_metadata": not bool(args.no_save_trajectory_metadata),
             "seed": args.seed,
+            "split_seed": args.split_seed,
+            "sample_seed": args.sample_seed,
         },
         "samples": dataset_samples,
     }
@@ -788,7 +948,7 @@ def validate_dataset(output_dir: Path, *, tolerance: float = 1.0e-6) -> dict[str
                     f"{trial_id} step {step_id}: target_block_xy_norm outside [-1, 1]: {target_xy_norm}"
                 )
 
-    if dataset_manifest.get("sequence_mode") == EXHAUSTIVE_SEQUENCE_MODE and not dataset_manifest.get("is_shard"):
+    if dataset_manifest.get("sequence_mode") in {EXHAUSTIVE_SEQUENCE_MODE, SAMPLED_SEQUENCE_MODE} and not dataset_manifest.get("is_shard"):
         expected_count = None
         if dataset_manifest.get("split_name") == "train":
             expected_count = int(dataset_manifest.get("num_train", -1))
@@ -798,6 +958,23 @@ def validate_dataset(output_dir: Path, *, tolerance: float = 1.0e-6) -> dict[str
             errors.append(f"Expected {expected_count} samples for split {dataset_manifest.get('split_name')}, got {len(samples)}")
         if not has_allowed_nonconsecutive_repeat:
             warnings.append("No non-consecutive repeat sequence observed in this split")
+
+        expected_counts_by_length = dataset_manifest.get("split_counts_by_length", {}).get(
+            dataset_manifest.get("split_name", ""),
+            {},
+        )
+        if expected_counts_by_length:
+            observed_counts_by_length: dict[str, int] = {}
+            for sample in samples:
+                length_key = str(int(sample.get("length", len(sample.get("sequence", [])))))
+                observed_counts_by_length[length_key] = observed_counts_by_length.get(length_key, 0) + 1
+            for length_key, expected_length_count in expected_counts_by_length.items():
+                observed_count = observed_counts_by_length.get(str(length_key), 0)
+                if observed_count != int(expected_length_count):
+                    errors.append(
+                        f"Expected {expected_length_count} length-{length_key} samples for split "
+                        f"{dataset_manifest.get('split_name')}, got {observed_count}"
+                    )
 
     return {
         "passed": not errors,
@@ -882,9 +1059,14 @@ def main() -> None:
             output_dir = Path("corsi_artifacts/visual_base/datasets") / LEN2_3_TRAIN_DATASET_NAME
         elif split_name == "val":
             output_dir = Path("corsi_artifacts/visual_base/datasets") / LEN2_3_VAL_DATASET_NAME
+    if args.sequence_mode == SAMPLED_SEQUENCE_MODE and args.output_dir == DEFAULT_OUTPUT_DIR:
+        if split_name == "train":
+            output_dir = Path("corsi_artifacts/visual_base/datasets") / LEN4_5_TRAIN_DATASET_NAME
+        elif split_name == "val":
+            output_dir = Path("corsi_artifacts/visual_base/datasets") / LEN4_5_VAL_DATASET_NAME
     base_output_dir = output_dir
     dataset_name = args.dataset_name or base_output_dir.name
-    if args.sequence_mode == EXHAUSTIVE_SEQUENCE_MODE and args.dataset_name == DEFAULT_DATASET_NAME:
+    if args.sequence_mode in {EXHAUSTIVE_SEQUENCE_MODE, SAMPLED_SEQUENCE_MODE} and args.dataset_name == DEFAULT_DATASET_NAME:
         dataset_name = base_output_dir.name
     if args.num_shards > 1:
         output_dir = base_output_dir / "shards" / f"shard_{args.shard_index:03d}_of_{args.num_shards:03d}"
@@ -905,6 +1087,7 @@ def main() -> None:
         sequence_mode=args.sequence_mode,
         split_name=split_name,
         split_seed=args.split_seed,
+        sample_seed=args.sample_seed,
     )
     indexed_sequences, shard_metadata = shard_indexed_sequences(
         sequences,
@@ -935,6 +1118,23 @@ def main() -> None:
             keyframes_dir = sample_dir / "rollout_keyframes"
             local_windows_dir = sample_dir / "rollout_local_windows"
             manifest_path = sample_dir / "manifest.json"
+
+            if args.resume_existing and manifest_path.exists():
+                existing_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+                existing_sequence = [int(block_id) for block_id in existing_manifest.get("sequence", [])]
+                if existing_sequence != [int(block_id) for block_id in sequence]:
+                    raise RuntimeError(
+                        f"Cannot resume {trial_id}: existing sequence {existing_sequence} "
+                        f"does not match expected {list(sequence)}"
+                    )
+                dataset_samples.append(
+                    {
+                        **existing_manifest,
+                        "sample_dir": str(sample_dir),
+                        "manifest_path": str(manifest_path),
+                    }
+                )
+                continue
 
             obs = env.reset()
             reset_paths = save_reset_frames_with_env(env, obs, camera_names, reset_dir)

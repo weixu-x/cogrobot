@@ -64,6 +64,7 @@ class TrainVisualConfig:
     dropout: float = 0.0
     input_image_size: int = 128
     output_type: str = "index"
+    decoder_mode: str = "autoregressive"
     target_type: str = "block_index"
     use_attention: bool = False
     attention_dim: int = 128
@@ -121,6 +122,7 @@ def normalize_config_overrides(data: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(model_overrides, dict):
         for key in (
             "output_type",
+            "decoder_mode",
             "use_attention",
             "use_step_embedding",
             "use_encoder_summary_input",
@@ -312,6 +314,12 @@ def parse_args() -> TrainVisualConfig:
     parser.add_argument("--input-image-size", type=int, default=defaults["input_image_size"])
     parser.add_argument("--output-type", type=str, default=defaults["output_type"], choices=["index", "heatmap", "xy"])
     parser.add_argument(
+        "--decoder-mode",
+        type=str,
+        default=defaults["decoder_mode"],
+        choices=["autoregressive", "step_conditioned"],
+    )
+    parser.add_argument(
         "--target-type",
         type=str,
         default=defaults["target_type"],
@@ -479,6 +487,7 @@ def build_model_config(train_config: TrainVisualConfig) -> VisualLSTMConfig:
         dropout=train_config.dropout,
         input_image_size=train_config.input_image_size,
         output_type=train_config.output_type,
+        decoder_mode=train_config.decoder_mode,
         use_attention=train_config.use_attention,
         attention_dim=train_config.attention_dim,
         attention_type=train_config.attention_type,
@@ -1180,6 +1189,7 @@ def save_xy_batch_sanity_dump(
         "epoch": int(epoch),
         "split": split_name,
         "output_type": config.output_type,
+        "decoder_mode": config.decoder_mode,
         "target_type": config.target_type,
         "pred_xy_shape": list(pred_xy.shape),
         "target_xy_shape": list(target_xy.shape),
@@ -1238,8 +1248,19 @@ def save_xy_training_wiring_check(
     xy_range = batch.get("xy_normalization", [{}])[0].get("range", [-1.0, 1.0]) if batch.get("xy_normalization") else [-1.0, 1.0]
     payload = {
         "output_type": config.output_type,
+        "decoder_mode": config.decoder_mode,
         "target_type": config.target_type,
         "uses_xy_branch": config.output_type == "xy" and outputs.get("pred_xy") is not None,
+        "uses_step_conditioned_decoder": (
+            config.output_type == "xy" and config.decoder_mode == "step_conditioned"
+        ),
+        "decoder_input_sources": (
+            ["step_embedding", "encoder_summary"]
+            if config.decoder_mode == "step_conditioned"
+            else ["previous_block_token"]
+            + (["step_embedding"] if config.use_step_embedding else [])
+            + (["encoder_summary"] if config.use_encoder_summary_input else [])
+        ),
         "pred_xy_shape": list(outputs["pred_xy"].shape) if outputs.get("pred_xy") is not None else None,
         "target_xy_shape": list(batch["target_xy"].shape) if batch.get("target_xy") is not None else None,
         "loss_source": "target_xy",
@@ -1828,6 +1849,7 @@ def validate_resume_compatibility(
         "dropout",
         "input_image_size",
         "output_type",
+        "decoder_mode",
         "target_type",
         "use_attention",
         "attention_dim",
@@ -1983,6 +2005,7 @@ def build_metrics_payload(
             "experiment_name": output_dir.name,
             "seed": int(config.seed),
             "output_type": config.output_type,
+            "decoder_mode": config.decoder_mode,
             "target_type": config.target_type,
             "use_attention": bool(config.use_attention),
             "attention_type": config.attention_type,
@@ -2173,6 +2196,13 @@ def main() -> None:
         raise ValueError("Scheduled sampling must be disabled for heatmap mode")
     if config.output_type == "xy" and config.target_type == "block_index":
         raise ValueError("output_type='xy' requires target.type to be block_center_xy or end_effector_xy")
+    if config.decoder_mode == "step_conditioned":
+        if config.output_type != "xy":
+            raise ValueError("decoder_mode='step_conditioned' is currently supported only for output_type='xy'")
+        if not config.use_step_embedding:
+            raise ValueError("decoder_mode='step_conditioned' requires model.use_step_embedding=true")
+        if not config.use_encoder_summary_input:
+            raise ValueError("decoder_mode='step_conditioned' requires model.use_encoder_summary_input=true")
     if config.output_type != "xy" and config.target_type != "block_index":
         print(
             json.dumps(
@@ -2361,6 +2391,7 @@ def main() -> None:
             "train_loss": round(float(train_stats["loss"]), 6),
             "val_loss": round(float(val_metrics["loss"]), 6),
             "output_type": config.output_type,
+            "decoder_mode": config.decoder_mode,
             "token_acc": round(float(val_metrics["token_accuracy"]), 6),
             "full_seq_acc": round(float(val_metrics["full_sequence_accuracy"]), 6),
             "token_accuracy": round(float(val_metrics["token_accuracy"]), 6),
@@ -2416,6 +2447,7 @@ def main() -> None:
                 "epoch": epoch,
                 "train_loss": round(float(train_stats["loss"]), 6),
                 "val_loss": round(float(val_metrics["loss"]), 6),
+                "decoder_mode": config.decoder_mode,
                 "train_pred_xy_min": round(float(train_stats.get("pred_xy_min", 0.0)), 6),
                 "train_pred_xy_max": round(float(train_stats.get("pred_xy_max", 0.0)), 6),
                 "train_pred_xy_mean": round(float(train_stats.get("pred_xy_mean", 0.0)), 6),
@@ -2570,6 +2602,7 @@ def main() -> None:
             "mean_xy_error_norm": float(best_metrics.get("mean_xy_error_norm", 0.0)),
             "mean_xy_error_table": float(best_metrics.get("mean_xy_error_table", 0.0)),
             "output_type": config.output_type,
+            "decoder_mode": config.decoder_mode,
             "target_type": config.target_type,
             "best_token_acc": float(best_metrics.get("token_accuracy", 0.0)),
             "best_token_accuracy": float(best_metrics.get("token_accuracy", 0.0)),

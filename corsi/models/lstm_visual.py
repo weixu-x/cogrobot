@@ -41,6 +41,7 @@ class VisualLSTMConfig:
     target_pad_value: int = -100
     input_image_size: int = 128
     output_type: str = "index"
+    decoder_mode: str = "autoregressive"
     use_attention: bool = False
     attention_dim: int = 128
     attention_type: str = "global"
@@ -148,13 +149,27 @@ class VisualSeq2SeqLSTM(nn.Module):
         self.config = config
         if config.output_type not in {"index", "heatmap", "xy"}:
             raise ValueError("output_type must be 'index', 'heatmap', or 'xy'")
+        if config.decoder_mode not in {"autoregressive", "step_conditioned"}:
+            raise ValueError("decoder_mode must be 'autoregressive' or 'step_conditioned'")
+        if config.decoder_mode == "step_conditioned":
+            if config.output_type != "xy":
+                raise ValueError("decoder_mode='step_conditioned' is currently supported only for output_type='xy'")
+            if not config.use_step_embedding:
+                raise ValueError("decoder_mode='step_conditioned' requires use_step_embedding=True")
+            if not config.use_encoder_summary_input:
+                raise ValueError("decoder_mode='step_conditioned' requires use_encoder_summary_input=True")
         if config.output_type == "heatmap" and config.use_attention:
             raise ValueError("Heatmap output mode requires use_attention=False")
         if config.heatmap_size < 2:
             raise ValueError("heatmap_size must be >= 2")
 
         rnn_dropout = config.dropout if config.num_layers > 1 else 0.0
-        decoder_input_dim = config.token_embedding_dim + (
+        decoder_token_dim = (
+            config.token_embedding_dim
+            if config.decoder_mode == "autoregressive"
+            else 0
+        )
+        decoder_input_dim = decoder_token_dim + (
             config.step_embedding_dim if config.use_step_embedding else 0
         ) + (
             config.hidden_dim if config.use_encoder_summary_input else 0
@@ -419,8 +434,9 @@ class VisualSeq2SeqLSTM(nn.Module):
         step_index: int,
         encoder_summary: Optional[Tensor] = None,
     ) -> Tensor:
-        token_emb = self.token_embedding(input_tokens)
-        pieces = [token_emb]
+        pieces = []
+        if self.config.decoder_mode == "autoregressive":
+            pieces.append(self.token_embedding(input_tokens))
         if not self.config.use_step_embedding or self.step_embedding is None:
             step_emb = None
         else:
@@ -433,6 +449,8 @@ class VisualSeq2SeqLSTM(nn.Module):
                 raise ValueError("encoder_summary is required when use_encoder_summary_input=True")
             summary = encoder_summary.unsqueeze(1).expand(-1, input_tokens.size(1), -1)
             pieces.append(summary)
+        if not pieces:
+            raise ValueError("Decoder input has no active conditioning features")
         return torch.cat(pieces, dim=-1)
 
     def _encoder_mask(self, encoder_outputs: Tensor, frame_lengths: Tensor) -> Tensor:
@@ -525,7 +543,8 @@ class VisualSeq2SeqLSTM(nn.Module):
         """
 
         if targets is not None and (
-            not self.config.use_attention
+            self.config.decoder_mode == "autoregressive"
+            and not self.config.use_attention
             and not self.config.use_step_embedding
             and not self.config.use_encoder_summary_input
             and teacher_forcing_ratio >= 1.0
@@ -603,7 +622,9 @@ class VisualSeq2SeqLSTM(nn.Module):
                 state=(hidden, cell),
                 encoder_outputs=encoder_outputs,
                 encoder_mask=encoder_mask,
-                previous_outputs_mask=previous_outputs_mask,
+                previous_outputs_mask=previous_outputs_mask
+                if self.config.decoder_mode == "autoregressive"
+                else None,
                 encoder_summary=encoder_summary,
             )
             if self.config.output_type == "index":
@@ -628,15 +649,16 @@ class VisualSeq2SeqLSTM(nn.Module):
                 pred_xy_steps.append(step_xy)
                 spatial_error_steps.append(step_distances)
             predictions.append(next_tokens)
-            emitted_tokens = next_tokens
-            if targets is not None and teacher_forcing_ratio >= 1.0 and step_index < targets.size(1):
-                emitted_tokens = targets[:, step_index]
-            valid_emitted = (emitted_tokens >= 0) & (emitted_tokens < self.config.num_blocks)
-            previous_outputs_mask.scatter_(
-                1,
-                emitted_tokens.clamp(0, self.config.num_blocks - 1).unsqueeze(1),
-                valid_emitted.unsqueeze(1),
-            )
+            if self.config.decoder_mode == "autoregressive":
+                emitted_tokens = next_tokens
+                if targets is not None and teacher_forcing_ratio >= 1.0 and step_index < targets.size(1):
+                    emitted_tokens = targets[:, step_index]
+                valid_emitted = (emitted_tokens >= 0) & (emitted_tokens < self.config.num_blocks)
+                previous_outputs_mask.scatter_(
+                    1,
+                    emitted_tokens.clamp(0, self.config.num_blocks - 1).unsqueeze(1),
+                    valid_emitted.unsqueeze(1),
+                )
             if return_traces:
                 decoder_hidden_trace.append(step_hidden)
                 attention_trace.append(attention_weights)
@@ -644,19 +666,20 @@ class VisualSeq2SeqLSTM(nn.Module):
                 attention_peak_displacement_trace.append(
                     attention_diagnostics["attention_peak_displacement"]
                 )
-            if targets is not None and step_index + 1 < max_steps:
-                if teacher_forcing_ratio >= 1.0:
-                    current_tokens = previous_targets[:, step_index]
-                elif teacher_forcing_ratio <= 0.0:
-                    current_tokens = next_tokens
+            if self.config.decoder_mode == "autoregressive":
+                if targets is not None and step_index + 1 < max_steps:
+                    if teacher_forcing_ratio >= 1.0:
+                        current_tokens = previous_targets[:, step_index]
+                    elif teacher_forcing_ratio <= 0.0:
+                        current_tokens = next_tokens
+                    else:
+                        teacher_mask = (
+                            torch.rand(batch_size, device=hidden.device) < teacher_forcing_ratio
+                        )
+                        gold_tokens = previous_targets[:, step_index]
+                        current_tokens = torch.where(teacher_mask, gold_tokens, next_tokens)
                 else:
-                    teacher_mask = (
-                        torch.rand(batch_size, device=hidden.device) < teacher_forcing_ratio
-                    )
-                    gold_tokens = previous_targets[:, step_index]
-                    current_tokens = torch.where(teacher_mask, gold_tokens, next_tokens)
-            else:
-                current_tokens = next_tokens
+                    current_tokens = next_tokens
 
         payload = {
             "predictions": torch.stack(predictions, dim=1),

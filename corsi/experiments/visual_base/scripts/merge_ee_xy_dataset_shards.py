@@ -60,6 +60,7 @@ def assert_compatible_shards(shard_manifests: list[dict[str, Any]]) -> None:
         "camera_names",
         "sequence_mode",
         "split_seed",
+        "sample_seed",
         "xy_normalization",
     ]
     for shard in shard_manifests[1:]:
