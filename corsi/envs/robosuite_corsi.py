@@ -16,10 +16,12 @@ import robosuite.environments.manipulation.lift_corsi_min
 import robosuite.environments.manipulation.lift_with_corsi_arena
 from robosuite.controllers import load_composite_controller_config
 from robosuite.models.grippers import InspireRightHand, register_gripper
+from robosuite.models.grippers.gripper_model import GripperModel
 from robosuite.models.robots import Panda
 from robosuite.robots import register_robot_class
 import robosuite.utils.transform_utils as T
 from robosuite.utils.mjcf_utils import IMAGE_CONVENTION_MAPPING
+from robosuite.utils.mjcf_utils import xml_path_completion
 import mujoco
 
 from corsi.envs.sequence_generator import (
@@ -40,6 +42,7 @@ DEFAULT_CORSI_FREE_CAM_CONFIG = {
 }
 DEFAULT_GRIPPER_ACTION = np.array([1.0, 0.0, 1.0, 1.0, 1.0, 1.0], dtype=np.float32)
 DEFAULT_GRIPPER_ACTION = np.clip(DEFAULT_GRIPPER_ACTION, 0.0, 1.0)
+DEFAULT_GRIPPER_SETTLE_STEPS = 50
 
 macros.IMAGE_CONVENTION = "opencv"
 
@@ -95,13 +98,21 @@ class InspireRightHandWithInit(InspireRightHand):
         return base[self.INDICES] * self.CTRL_MAX
 
 
+@register_gripper
+class InspireRightHandLightWithInit(InspireRightHandWithInit):
+    """Light-colored Inspire hand variant for contrast against black Corsi blocks."""
+
+    def __init__(self, idn=0):
+        GripperModel.__init__(self, xml_path_completion("grippers/inspire_right_hand_light.xml"), idn=idn)
+
+
 @register_robot_class("FixedBaseRobot")
 class PandaDexRH(Panda):
     """Panda robot with the fixed pointing hand attached on the right arm."""
 
     @property
     def default_gripper(self):
-        return {"right": "InspireRightHandWithInit"}
+        return {"right": "InspireRightHandLightWithInit"}
 
     @property
     def gripper_mount_pos_offset(self):
@@ -158,6 +169,7 @@ def create_env(
     offline_cameras: Optional[Sequence[str]] = None,
     control_freq: int = 20,
     corsi_layout: Optional[Dict[int, tuple[float, float]]] = None,
+    block_rgba_list: Optional[Sequence[Sequence[float]]] = None,
     renderer_config: Optional[Dict[str, object]] = None,
 ):
     online = render_mode == "online"
@@ -190,6 +202,7 @@ def create_env(
         ignore_done=True,
         block_xy_positions=ordered_block_xy_positions,
         corsi_board_size_xy=board_size_xy,
+        block_rgba_list=block_rgba_list,
         renderer=renderer,
         renderer_config=resolved_renderer_config,
     )
@@ -199,6 +212,33 @@ def resolve_block_names(env) -> List[str]:
     if hasattr(env.model, "mujoco_arena") and hasattr(env.model.mujoco_arena, "block_names"):
         return list(env.model.mujoco_arena.block_names)
     return [name for name in env.sim.model.body_names if name.startswith("corsi_block_")]
+
+
+def settled_gripper_action(
+    env,
+    *,
+    steps: int = DEFAULT_GRIPPER_SETTLE_STEPS,
+    gripper_action: Optional[np.ndarray] = None,
+):
+    """Steps the sim with a fixed gripper command so the hand reaches its pointing pose."""
+
+    obs = None
+    if steps <= 0:
+        return obs
+
+    robot = env.robots[0]
+    arm = robot.arms[0]
+    gripper_name = robot.get_gripper_name(arm)
+    arm_dim = robot.part_controllers[arm].control_dim
+    arm_action = np.zeros(arm_dim, dtype=np.float32)
+    gripper_action = np.array(
+        DEFAULT_GRIPPER_ACTION if gripper_action is None else gripper_action,
+        dtype=np.float32,
+    )
+    action = robot.create_action_vector({arm: arm_action, gripper_name: gripper_action})
+    for _ in range(int(steps)):
+        obs, _, _, _ = env.step(action)
+    return obs
 
 
 def site_pose_in_base(robot, site_name: str) -> np.ndarray:
@@ -236,13 +276,25 @@ def init_sequence_state(
     env,
     block_sequence: Sequence[int],
     *,
-    target_height: float = 0.04,
+    target_height: float = 0.03,
     speed_gain: float = 0.1,
     arrival_threshold: float = 0.015,
     dwell_steps: int = 8,
+    gripper_settle_steps: int = DEFAULT_GRIPPER_SETTLE_STEPS,
     gripper_action: Optional[np.ndarray] = None,
 ) -> Dict[str, object]:
     obs = env.reset()
+    resolved_gripper_action = np.array(
+        DEFAULT_GRIPPER_ACTION if gripper_action is None else gripper_action,
+        dtype=np.float32,
+    )
+    settled_obs = settled_gripper_action(
+        env,
+        steps=gripper_settle_steps,
+        gripper_action=resolved_gripper_action,
+    )
+    if settled_obs is not None:
+        obs = settled_obs
     robot = env.robots[0]
     arm = robot.arms[0]
     gripper_name = robot.get_gripper_name(arm)
@@ -268,10 +320,7 @@ def init_sequence_state(
         "speed_gain": float(speed_gain),
         "arrival_threshold": float(arrival_threshold),
         "dwell_steps": int(dwell_steps),
-        "gripper_action": np.array(
-            DEFAULT_GRIPPER_ACTION if gripper_action is None else gripper_action,
-            dtype=np.float32,
-        ),
+        "gripper_action": resolved_gripper_action,
     }
 
 
@@ -369,10 +418,21 @@ def rollout_sequence_offline(
 
     try:
         state = init_sequence_state(env, block_sequence, **state_kwargs)
+        saved_keyframe_steps: set[int] = set()
         while not state["completed"]:
             action = step_pointing_policy(state)
             state["obs"], _, _, _ = env.step(action)
+            should_save_keyframe = (
+                save_keyframes
+                and state["dwell_counter"] == 1
+                and not state["completed"]
+                and int(state["sequence_position"]) not in saved_keyframe_steps
+            )
+            seq_index = int(state["sequence_position"]) if should_save_keyframe else None
+            block_id = int(state["block_sequence"][seq_index]) if should_save_keyframe else None
             for camera_name in cameras:
+                if not (write_videos or keep_frames or should_save_keyframe):
+                    continue
                 if camera_name == FREE_CAMERA_NAME:
                     frame = render_tuned_free_camera_frame(env)
                 else:
@@ -384,13 +444,13 @@ def rollout_sequence_offline(
                     writers[camera_name].append_data(frame)
                 if keep_frames:
                     imageio.imwrite(frames_dir / camera_name / f"frame_{state['step']:05d}.png", frame)
-                if save_keyframes and state["dwell_counter"] == 1 and not state["completed"]:
-                    seq_index = state["sequence_position"]
-                    block_id = state["block_sequence"][seq_index]
+                if should_save_keyframe:
                     imageio.imwrite(
                         keyframes_dir / camera_name / f"keyframe_step_{seq_index:02d}_block_{block_id}_{camera_name}.png",
                         frame,
                     )
+            if should_save_keyframe and seq_index is not None:
+                saved_keyframe_steps.add(seq_index)
             state["step"] += 1
     finally:
         for camera_name, writer in writers.items():

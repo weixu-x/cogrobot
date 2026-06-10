@@ -21,10 +21,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from corsi.envs.robosuite_corsi import (  # noqa: E402
+    DEFAULT_GRIPPER_SETTLE_STEPS,
     FREE_CAMERA_NAME,
     create_env,
     init_sequence_state,
     render_tuned_free_camera_frame,
+    settled_gripper_action,
     step_pointing_policy,
 )
 from corsi.envs.sequence_generator import (  # noqa: E402
@@ -100,7 +102,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--speed-gain", type=float, default=0.03)
     parser.add_argument("--dwell-steps", type=int, default=24)
     parser.add_argument("--arrival-threshold", type=float, default=0.01)
-    parser.add_argument("--target-height", type=float, default=0.04)
+    parser.add_argument("--target-height", type=float, default=0.03)
+    parser.add_argument("--gripper-settle-steps", type=int, default=DEFAULT_GRIPPER_SETTLE_STEPS)
     parser.add_argument("--max-control-steps", type=int, default=5000)
     parser.add_argument("--write-rollout-videos", action="store_true")
     parser.add_argument("--keep-rollout-frames", action="store_true")
@@ -616,6 +619,7 @@ def rollout_sequence_with_ee_xy_metadata(
     dwell_steps: int,
     arrival_threshold: float,
     target_height: float,
+    gripper_settle_steps: int,
     max_control_steps: int,
 ) -> dict[str, Any]:
     cameras = list(camera_names)
@@ -659,6 +663,7 @@ def rollout_sequence_with_ee_xy_metadata(
             dwell_steps=dwell_steps,
             arrival_threshold=arrival_threshold,
             target_height=target_height,
+            gripper_settle_steps=gripper_settle_steps,
         )
         while not state["completed"]:
             if int(state["step"]) >= int(max_control_steps):
@@ -864,6 +869,7 @@ def dataset_manifest_payload(
             "dwell_steps": args.dwell_steps,
             "arrival_threshold": args.arrival_threshold,
             "target_height": args.target_height,
+            "gripper_settle_steps": args.gripper_settle_steps,
             "max_control_steps": args.max_control_steps,
             "write_rollout_videos": bool(args.write_rollout_videos),
             "keep_rollout_frames": bool(args.keep_rollout_frames),
@@ -1137,6 +1143,9 @@ def main() -> None:
                 continue
 
             obs = env.reset()
+            settled_obs = settled_gripper_action(env, steps=args.gripper_settle_steps)
+            if settled_obs is not None:
+                obs = settled_obs
             reset_paths = save_reset_frames_with_env(env, obs, camera_names, reset_dir)
             rollout_payload = rollout_sequence_with_ee_xy_metadata(
                 env,
@@ -1158,6 +1167,7 @@ def main() -> None:
                 dwell_steps=args.dwell_steps,
                 arrival_threshold=args.arrival_threshold,
                 target_height=args.target_height,
+                gripper_settle_steps=args.gripper_settle_steps,
                 max_control_steps=args.max_control_steps,
             )
 
@@ -1188,6 +1198,7 @@ def main() -> None:
                     "dwell_steps": args.dwell_steps,
                     "arrival_threshold": args.arrival_threshold,
                     "target_height": args.target_height,
+                    "gripper_settle_steps": args.gripper_settle_steps,
                     "seed": args.seed,
                     "ee_site_name": "gripper0_right_index_tip_site",
                     "xy_normalization": {

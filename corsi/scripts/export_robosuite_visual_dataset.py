@@ -12,7 +12,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from corsi.envs.robosuite_corsi import FREE_CAMERA_NAME, create_env, rollout_sequence_offline
+from corsi.envs.robosuite_corsi import (
+    DEFAULT_GRIPPER_SETTLE_STEPS,
+    FREE_CAMERA_NAME,
+    create_env,
+    rollout_sequence_offline,
+    settled_gripper_action,
+)
 from corsi.envs.sequence_generator import generate_trial_collection
 from corsi.scripts.export_robosuite_corsi_frames import parse_csv_list, save_reset_frames_with_env
 
@@ -38,7 +44,8 @@ def parse_args():
     parser.add_argument("--speed-gain", type=float, default=0.03)
     parser.add_argument("--dwell-steps", type=int, default=24)
     parser.add_argument("--arrival-threshold", type=float, default=0.01)
-    parser.add_argument("--target-height", type=float, default=0.04)
+    parser.add_argument("--target-height", type=float, default=0.03)
+    parser.add_argument("--gripper-settle-steps", type=int, default=DEFAULT_GRIPPER_SETTLE_STEPS)
     parser.add_argument("--write-rollout-videos", action="store_true")
     parser.add_argument("--keep-rollout-frames", action="store_true")
     parser.add_argument("--keep-rollout-videos", action="store_true")
@@ -133,6 +140,7 @@ def dataset_manifest_payload(
             "dwell_steps": args.dwell_steps,
             "arrival_threshold": args.arrival_threshold,
             "target_height": args.target_height,
+            "gripper_settle_steps": args.gripper_settle_steps,
             "write_rollout_videos": bool(args.write_rollout_videos),
             "keep_rollout_frames": bool(args.keep_rollout_frames),
             "keep_rollout_videos": bool(args.keep_rollout_videos),
@@ -185,6 +193,9 @@ def main() -> None:
             manifest_path = sample_dir / "manifest.json"
 
             obs = env.reset()
+            settled_obs = settled_gripper_action(env, steps=args.gripper_settle_steps)
+            if settled_obs is not None:
+                obs = settled_obs
             reset_paths = save_reset_frames_with_env(env, obs, camera_names, reset_dir)
             rollout_sequence_offline(
                 env,
@@ -201,6 +212,7 @@ def main() -> None:
                 dwell_steps=args.dwell_steps,
                 arrival_threshold=args.arrival_threshold,
                 target_height=args.target_height,
+                gripper_settle_steps=args.gripper_settle_steps,
             )
 
             if args.write_rollout_videos and not args.keep_rollout_videos:
@@ -230,6 +242,7 @@ def main() -> None:
                     "dwell_steps": args.dwell_steps,
                     "arrival_threshold": args.arrival_threshold,
                     "target_height": args.target_height,
+                    "gripper_settle_steps": args.gripper_settle_steps,
                     "seed": args.seed,
                 },
             }

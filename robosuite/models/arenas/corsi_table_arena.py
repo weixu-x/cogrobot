@@ -72,17 +72,7 @@ class CorsiTableArena(Arena):
         self.board_outline_rgba = np.array(board_outline_rgba, dtype=float)
 
         if block_rgba_list is None:
-            block_rgba_list = [
-                [1.0, 0.0, 0.0, 1.0],
-                [0.0, 1.0, 0.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0],
-                [1.0, 1.0, 0.0, 1.0],
-                [1.0, 0.0, 1.0, 1.0],
-                [0.0, 1.0, 1.0, 1.0],
-                [1.0, 0.5, 0.0, 1.0],
-                [0.6, 0.3, 1.0, 1.0],
-                [0.8, 0.8, 0.8, 1.0],
-            ]
+            block_rgba_list = [[0.0, 0.0, 0.0, 1.0]]
         self.block_rgba_list = [list(map(float, c)) for c in block_rgba_list]
 
         self.block_names: List[str] = []
