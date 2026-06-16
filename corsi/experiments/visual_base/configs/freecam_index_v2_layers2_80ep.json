@@ -1,0 +1,20 @@
+{
+  "dataset_root": "corsi_artifacts/visual_base/datasets/freecam_index_v2_train",
+  "val_dataset_root": "corsi_artifacts/visual_base/datasets/freecam_index_v2_val",
+  "camera_name": "freecam",
+  "include_reset_frame": false,
+  "val_ratio": 0.1,
+  "batch_size": 16,
+  "epochs": 80,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0,
+  "cnn_feature_dim": 128,
+  "token_embedding_dim": 64,
+  "hidden_dim": 128,
+  "num_layers": 2,
+  "dropout": 0.0,
+  "input_image_size": 128,
+  "seed": 23,
+  "device": "auto",
+  "output_dir": "corsi_artifacts/visual_base/training/freecam_index_v2_layers2_80ep"
+}

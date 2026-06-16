@@ -1,0 +1,11 @@
+{
+  "base_config": "base_v2_attention_ablation.json",
+  "output_dir": "corsi_artifacts/visual_base/training/attention_ablation/local_distance_05",
+  "model": {
+    "attention_type": "local_distance",
+    "local_attention": {
+      "lambda_distance": 0.5
+    },
+    "use_step_embedding": true
+  }
+}

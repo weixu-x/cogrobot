@@ -1,0 +1,11 @@
+{
+  "base_config": "base_v2_attention_ablation.json",
+  "output_dir": "corsi_artifacts/visual_base/training/attention_ablation/local_window_2",
+  "model": {
+    "attention_type": "local_window",
+    "local_attention": {
+      "window_size": 2
+    },
+    "use_step_embedding": true
+  }
+}

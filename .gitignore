@@ -105,6 +105,7 @@ ENV/
 
 # mac
 .DS_Store
+.pycache/
 
 # mujoco files
 mjkey.txt
@@ -129,3 +130,6 @@ MUJOCO_LOG.TXT
 
 # private demonstration files
 robosuite/models/assets/demonstrations_private
+
+# training artifacts
+corsi_artifacts/

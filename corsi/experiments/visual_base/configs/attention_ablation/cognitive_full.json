@@ -1,0 +1,27 @@
+{
+  "base_config": "base_v2_attention_ablation.json",
+  "output_dir": "corsi_artifacts/visual_base/training/attention_ablation/cognitive_full",
+  "model": {
+    "attention_type": "cognitive_full",
+    "local_attention": {
+      "lambda_distance": 0.3
+    },
+    "noisy_attention": {
+      "enabled": true,
+      "noise_std": 0.1,
+      "apply_during_training": true,
+      "apply_during_eval": false
+    },
+    "memory_decay": {
+      "enabled": true,
+      "decay_type": "recency",
+      "alpha": 0.05
+    },
+    "response_suppression": {
+      "enabled": true,
+      "beta": 1.0,
+      "hard_mask": false
+    },
+    "use_step_embedding": true
+  }
+}

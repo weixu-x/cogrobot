@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -39,6 +39,12 @@ class CorsiTableArena(Arena):
         # anchor
         tabletop_site_name: str = "table_top",
         table_body_name: str = "table",
+        block_xy_positions: Optional[Sequence[Tuple[float, float]]] = None,
+        corsi_board_size_xy: Optional[Tuple[float, float]] = None,
+        board_outline_thickness: float = 0.008,
+        board_outline_height: float = 0.004,
+        board_outline_rgba: Optional[Sequence[float]] = None,
+        board_outline_z_offset: float = 0.002,
 
     ):
         # 这些要在 super().__init__ 之前设好，因为 Arena.__init__ 会立刻调用 _postprocess_arena()
@@ -56,19 +62,17 @@ class CorsiTableArena(Arena):
         self.block_half_size = np.array(block_half_size, dtype=float)
         self.block_z_offset = float(block_z_offset)
         self.tabletop_site_name = tabletop_site_name
+        self.block_xy_positions = None if block_xy_positions is None else np.array(block_xy_positions, dtype=float)
+        self.corsi_board_size_xy = None if corsi_board_size_xy is None else np.array(corsi_board_size_xy, dtype=float)
+        self.board_outline_thickness = float(board_outline_thickness)
+        self.board_outline_height = float(board_outline_height)
+        self.board_outline_z_offset = float(board_outline_z_offset)
+        if board_outline_rgba is None:
+            board_outline_rgba = [0.15, 0.13, 0.11, 1.0]
+        self.board_outline_rgba = np.array(board_outline_rgba, dtype=float)
 
         if block_rgba_list is None:
-            block_rgba_list = [
-                [1.0, 0.0, 0.0, 1.0],
-                [0.0, 1.0, 0.0, 1.0],
-                [0.0, 0.0, 1.0, 1.0],
-                [1.0, 1.0, 0.0, 1.0],
-                [1.0, 0.0, 1.0, 1.0],
-                [0.0, 1.0, 1.0, 1.0],
-                [1.0, 0.5, 0.0, 1.0],
-                [0.6, 0.3, 1.0, 1.0],
-                [0.8, 0.8, 0.8, 1.0],
-            ]
+            block_rgba_list = [[0.0, 0.0, 0.0, 1.0]]
         self.block_rgba_list = [list(map(float, c)) for c in block_rgba_list]
 
         self.block_names: List[str] = []
@@ -106,21 +110,27 @@ class CorsiTableArena(Arena):
         # 2) block 的 z：桌面 + 半高 + offset
         z = tz + float(self.block_half_size[2]) + float(self.block_z_offset)
 
-        # 3) 在桌面范围内随机采样 9 个点，保证不重叠
-        # 你可以把这些参数写成 __init__ 参数（推荐）
-        n = self.rows * self.cols  # 你如果固定9，也可以直接 n=9
-        x_range = (-0.18, 0.18)    # 相对 table_top_world 的范围（按你桌面大小调）
-        y_range = (-0.18, 0.18)
-        margin = 0.01              # block 与 block 的额外安全间隙
+        n = self.rows * self.cols
+        if self.block_xy_positions is not None:
+            if self.block_xy_positions.shape != (n, 2):
+                raise ValueError(
+                    f"block_xy_positions must have shape ({n}, 2), got {self.block_xy_positions.shape}"
+                )
+            pts_xy = [(cx + float(dx), cy + float(dy)) for dx, dy in self.block_xy_positions]
+        else:
+            # 3) 在桌面范围内随机采样 9 个点，保证不重叠
+            x_range = (-0.18, 0.18)
+            y_range = (-0.18, 0.18)
+            margin = 0.01
 
-        pts_xy = self._sample_nonoverlap_xy(
-            n=n,
-            center_xy=(cx, cy),
-            x_range=x_range,
-            y_range=y_range,
-            min_dist=2.0 * (max(self.block_half_size[0], self.block_half_size[1]) + margin),
-            max_tries=5000,
-        )
+            pts_xy = self._sample_nonoverlap_xy(
+                n=n,
+                center_xy=(cx, cy),
+                x_range=x_range,
+                y_range=y_range,
+                min_dist=2.0 * (max(self.block_half_size[0], self.block_half_size[1]) + margin),
+                max_tries=5000,
+            )
 
         # 4) 创建 blocks（静态 body + box geom）
         self.block_names = []
@@ -146,6 +156,40 @@ class CorsiTableArena(Arena):
             positions.append(pos)
 
         self.block_positions = np.array(positions, dtype=float)
+        self._add_board_outline(center_xy=(cx, cy), top_z=tz)
+
+    def _add_board_outline(self, center_xy, top_z: float):
+        if self.corsi_board_size_xy is None:
+            return
+
+        board_width = float(self.corsi_board_size_xy[0])
+        board_height = float(self.corsi_board_size_xy[1])
+        cx, cy = center_xy
+        hz = self.board_outline_height / 2.0
+        z = float(top_z) + hz + self.board_outline_z_offset
+        half_thickness = self.board_outline_thickness / 2.0
+        half_width = board_width / 2.0
+        half_height = board_height / 2.0
+
+        outline_specs = [
+            ("corsi_outline_top", (cx, cy + half_height, z), (half_width + self.board_outline_thickness, half_thickness, hz)),
+            ("corsi_outline_bottom", (cx, cy - half_height, z), (half_width + self.board_outline_thickness, half_thickness, hz)),
+            ("corsi_outline_left", (cx - half_width, cy, z), (half_thickness, half_height, hz)),
+            ("corsi_outline_right", (cx + half_width, cy, z), (half_thickness, half_height, hz)),
+        ]
+
+        for name, pos, size in outline_specs:
+            geom = new_geom(
+                name=name,
+                type="box",
+                pos=array_to_string(np.array(pos, dtype=float)),
+                size=array_to_string(np.array(size, dtype=float)),
+                rgba=array_to_string(self.board_outline_rgba),
+                conaffinity="0",
+                contype="0",
+                group="1",
+            )
+            self.worldbody.append(geom)
 
 
     @staticmethod

@@ -1,0 +1,40 @@
+dataset_root: corsi_artifacts/visual_base/datasets/freecam_ee_xy_v1_len2_3_train
+val_dataset_root: corsi_artifacts/visual_base/datasets/freecam_ee_xy_v1_len2_3_val
+camera_name: freecam
+include_reset_frame: false
+train_length_filter: [2, 3]
+val_length_filter: [2, 3]
+batch_size: 16
+lr: 0.001
+weight_decay: 0.0
+gradient_clip_norm: 1.0
+cnn_feature_dim: 128
+token_embedding_dim: 64
+hidden_dim: 128
+num_layers: 1
+dropout: 0.0
+input_image_size: 128
+seed: 42
+device: auto
+output_dir: corsi_artifacts/visual_base/training/visual_xy_ee_len2_3_step_conditioned
+
+model:
+  output_type: xy
+  decoder_mode: step_conditioned
+  use_attention: false
+  use_step_embedding: true
+  use_encoder_summary_input: true
+
+target:
+  type: end_effector_xy
+
+training:
+  use_scheduled_sampling: false
+  max_epochs: 200
+  early_stopping_patience: 20
+
+xy:
+  loss: smooth_l1
+  within_radius_norm: 0.1
+  visualization_samples: 8
+  export_validation_hidden_states: false

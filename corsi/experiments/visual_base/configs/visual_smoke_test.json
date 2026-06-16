@@ -1,0 +1,19 @@
+{
+  "dataset_root": "corsi_artifacts/visual_base/datasets/robosuite_visual_dataset_preview",
+  "camera_name": "freecam",
+  "include_reset_frame": false,
+  "val_ratio": 0.34,
+  "batch_size": 2,
+  "epochs": 2,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0,
+  "cnn_feature_dim": 64,
+  "token_embedding_dim": 64,
+  "hidden_dim": 128,
+  "num_layers": 1,
+  "dropout": 0.0,
+  "input_image_size": 128,
+  "seed": 7,
+  "device": "auto",
+  "output_dir": "corsi_artifacts/visual_base/training/visual_smoke_test"
+}

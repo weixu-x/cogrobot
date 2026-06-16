@@ -1,0 +1,10 @@
+{
+  "base_config": "base_v2_attention_ablation.json",
+  "output_dir": "corsi_artifacts/visual_base/training/attention_ablation/global",
+  "model": {
+    "use_attention": true,
+    "attention_type": "global",
+    "attention_temperature": 1.0,
+    "use_step_embedding": true
+  }
+}

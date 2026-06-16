@@ -1,0 +1,38 @@
+dataset_root: corsi_artifacts/visual_base/datasets/freecam_index_v2_train
+val_dataset_root: corsi_artifacts/visual_base/datasets/freecam_index_v2_val
+camera_name: freecam
+include_reset_frame: false
+train_length_filter: [2]
+val_length_filter: [2]
+batch_size: 16
+max_epochs: 40
+learning_rate: 0.0003
+weight_decay: 0.0001
+gradient_clip_norm: 1.0
+heatmap_visualization_samples: 0
+cnn_feature_dim: 128
+token_embedding_dim: 64
+hidden_dim: 128
+num_layers: 1
+dropout: 0.0
+input_image_size: 128
+seed: 42
+device: cuda
+output_dir: corsi_artifacts/visual_base/training/visual_heatmap_len2_only
+
+model:
+  output_type: heatmap
+  use_attention: false
+  use_step_embedding: true
+  use_encoder_summary_input: true
+
+training:
+  use_scheduled_sampling: false
+  early_stopping_patience: 6
+
+heatmap:
+  size: 32
+  sigma: 3.0
+  normalize: true
+  loss: spatial_ce
+  decode_method: argmax

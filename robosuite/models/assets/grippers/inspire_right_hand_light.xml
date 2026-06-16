@@ -60,14 +60,14 @@
 
         <material name="site_right_hand" rgba="0.1882 0.1882 0.1882 0"/>
 
-        <material name="r_base_material" rgba="0 0 0 1"/>
-        <material name="r_thumb_material" rgba="0 0 0 1"/>
-        <material name="r_index_material" rgba="0 0 0 1"/>
-        <material name="r_middle_material" rgba="0 0 0 1"/>
-        <material name="r_ring_material" rgba="0 0 0 1"/>
-        <material name="r_pinky_material" rgba="0 0 0 1"/>
+        <material name="r_base_material" rgba="0.85 0.85 0.85 1"/>
+        <material name="r_thumb_material" rgba="0.85 0.85 0.85 1"/>
+        <material name="r_index_material" rgba="0.85 0.85 0.85 1"/>
+        <material name="r_middle_material" rgba="0.85 0.85 0.85 1"/>
+        <material name="r_ring_material" rgba="0.85 0.85 0.85 1"/>
+        <material name="r_pinky_material" rgba="0.85 0.85 0.85 1"/>
 
-        <material name="r_thumb_distal_material" rgba="0 0 0 1"/>
+        <material name="r_thumb_distal_material" rgba="0.85 0.85 0.85 1"/>
 
     </asset>
 
