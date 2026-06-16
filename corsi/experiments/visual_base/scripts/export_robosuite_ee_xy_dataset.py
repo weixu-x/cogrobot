@@ -24,6 +24,7 @@ from corsi.envs.robosuite_corsi import (  # noqa: E402
     DEFAULT_GRIPPER_SETTLE_STEPS,
     FREE_CAMERA_NAME,
     create_env,
+    collect_motion_state,
     init_sequence_state,
     render_tuned_free_camera_frame,
     settled_gripper_action,
@@ -553,6 +554,7 @@ def collect_step_metadata(
     table_center_xy_world: Sequence[float],
     camera_names: Sequence[str],
     frame_role: str,
+    motion_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     block_index = int(state["block_sequence"][step_index])
     block_name = state["block_names"][block_index]
@@ -561,7 +563,7 @@ def collect_step_metadata(
     ee_site_name = str(state["target_site_name"])
     ee_xyz_world = get_site_xyz_world(env, ee_site_name)
     ee_xy_table = world_xy_to_corsi_xy(ee_xyz_world[:2], table_center_xy_world)
-    return {
+    metadata = {
         "step": int(step_index),
         "block_index": block_index,
         "target_block_xy_table": block_xy_table,
@@ -579,6 +581,9 @@ def collect_step_metadata(
             ee_xyz_world=ee_xyz_world,
         ),
     }
+    if motion_state is not None:
+        metadata["motion_state"] = motion_state
+    return metadata
 
 
 def save_local_window_frame(
@@ -675,6 +680,7 @@ def rollout_sequence_with_ee_xy_metadata(
             action = step_pointing_policy(state)
             state["obs"], _, _, _ = env.step(action)
             control_step = int(state["step"])
+            motion_state = collect_motion_state(env, state, action)
             frames = {camera_name: render_camera_frame(env, state["obs"], camera_name) for camera_name in cameras}
 
             for camera_name, frame in frames.items():
@@ -700,6 +706,7 @@ def rollout_sequence_with_ee_xy_metadata(
                         "ee_xyz_world": ee_xyz_world,
                         "ee_xy_table": ee_xy_table,
                         "ee_xy_norm": table_xy_to_norm(ee_xy_table, xy_norm_bounds),
+                        "motion_state": motion_state,
                     }
                 )
 
@@ -737,6 +744,7 @@ def rollout_sequence_with_ee_xy_metadata(
                     table_center_xy_world=table_center_xy_world,
                     camera_names=cameras,
                     frame_role="keyframe",
+                    motion_state=motion_state,
                 )
                 if save_local_window:
                     metadata["local_window_paths"] = {}

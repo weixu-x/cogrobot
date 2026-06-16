@@ -1,0 +1,10 @@
+dataset_root: corsi_artifacts/visual_base/datasets/freecam_ee_xy_v1_preview
+camera_name: freecam
+batch_size: 2
+model:
+  input_image_size: 128
+  cnn_feature_dim: 32
+  hidden_dim: 32
+  proprio_dim: 0
+target:
+  type: motion_xy

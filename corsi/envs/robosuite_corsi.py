@@ -335,7 +335,10 @@ def step_pointing_policy(state: Dict[str, object]):
     arm_action = np.zeros(state["arm_dim"], dtype=np.float32)
 
     if state["completed"]:
-        return robot.create_action_vector({arm: arm_action, state["gripper_name"]: state["gripper_action"]})
+        action = robot.create_action_vector({arm: arm_action, state["gripper_name"]: state["gripper_action"]})
+        state["last_arm_action"] = arm_action.copy()
+        state["last_action"] = np.asarray(action, dtype=np.float32).copy()
+        return action
 
     target_name = current_target_name(state)
     block_center_pos = robot.pose_in_base_from_name(target_name)[:3, 3]
@@ -366,7 +369,49 @@ def step_pointing_policy(state: Dict[str, object]):
     else:
         state["dwell_counter"] = 0
 
-    return robot.create_action_vector({arm: arm_action, state["gripper_name"]: state["gripper_action"]})
+    action = robot.create_action_vector({arm: arm_action, state["gripper_name"]: state["gripper_action"]})
+    state["last_arm_action"] = arm_action.copy()
+    state["last_action"] = np.asarray(action, dtype=np.float32).copy()
+    return action
+
+
+def collect_motion_state(env, state: Dict[str, object], action: Optional[np.ndarray] = None) -> Dict[str, object]:
+    """Collects robot proprioception/control fields for motion datasets."""
+
+    robot = state["robot"]
+    arm = state["arm"]
+    controller = robot.part_controllers[arm]
+    arm_qpos_indexes = list(getattr(robot, "_ref_arm_joint_pos_indexes", []))
+    arm_qvel_indexes = list(getattr(robot, "_ref_arm_joint_vel_indexes", []))
+    arm_joint_indexes = list(getattr(robot, "_ref_arm_joint_indexes", []))
+    arm_joint_names = []
+    for joint_id in arm_joint_indexes:
+        try:
+            arm_joint_names.append(str(robot.sim.model.joint_id2name(int(joint_id))))
+        except Exception:
+            arm_joint_names.append(str(joint_id))
+
+    arm_joint_qpos = np.asarray(robot.sim.data.qpos[arm_qpos_indexes], dtype=np.float32)
+    arm_joint_qvel = np.asarray(robot.sim.data.qvel[arm_qvel_indexes], dtype=np.float32)
+    arm_action = np.asarray(state.get("last_arm_action", np.zeros(state["arm_dim"])), dtype=np.float32)
+    full_action = np.asarray(
+        state.get("last_action", np.asarray(action if action is not None else [], dtype=np.float32)),
+        dtype=np.float32,
+    )
+
+    return {
+        "robot_name": robot.robot_model.__class__.__name__,
+        "arm": str(arm),
+        "controller_type": controller.__class__.__name__,
+        "arm_control_dim": int(controller.control_dim),
+        "arm_joint_count": int(len(arm_qpos_indexes)),
+        "arm_joint_names": arm_joint_names,
+        "joint_position_source": "robot.sim.data.qpos[robot._ref_arm_joint_pos_indexes]",
+        "arm_joint_qpos": arm_joint_qpos.tolist(),
+        "arm_joint_qvel": arm_joint_qvel.tolist(),
+        "arm_action": arm_action.tolist(),
+        "full_action": full_action.tolist(),
+    }
 
 
 def rollout_sequence_online(env, block_sequence: Sequence[int], **state_kwargs) -> Dict[str, object]:
