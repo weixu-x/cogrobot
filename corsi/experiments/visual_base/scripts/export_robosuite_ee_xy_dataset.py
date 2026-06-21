@@ -586,6 +586,28 @@ def collect_step_metadata(
     return metadata
 
 
+def collect_block_positions(
+    env,
+    state: dict[str, Any],
+    *,
+    xy_norm_bounds: dict[str, float],
+    table_center_xy_world: Sequence[float],
+) -> dict[str, dict[str, list[float]]]:
+    """Records static block positions in the same frames as the motion data."""
+
+    positions: dict[str, dict[str, list[float]]] = {}
+    for block_index, block_name in enumerate(state["block_names"]):
+        block_xyz_world = get_body_xyz_world(env, str(block_name))
+        block_xy_table = world_xy_to_corsi_xy(block_xyz_world[:2], table_center_xy_world)
+        positions[str(block_index)] = {
+            "body_name": str(block_name),
+            "xyz_world": [float(v) for v in block_xyz_world],
+            "xy_table": [float(v) for v in block_xy_table],
+            "xy_norm": table_xy_to_norm(block_xy_table, xy_norm_bounds),
+        }
+    return positions
+
+
 def save_local_window_frame(
     *,
     local_windows_dir: Path,

@@ -171,6 +171,8 @@ def create_env(
     corsi_layout: Optional[Dict[int, tuple[float, float]]] = None,
     block_rgba_list: Optional[Sequence[Sequence[float]]] = None,
     renderer_config: Optional[Dict[str, object]] = None,
+    seed: Optional[int] = None,
+    use_camera_obs: Optional[bool] = None,
 ):
     online = render_mode == "online"
     camera_names = (
@@ -194,7 +196,7 @@ def create_env(
         has_renderer=online,
         has_offscreen_renderer=not online,
         render_camera=online_render_camera,
-        use_camera_obs=not online,
+        use_camera_obs=(not online) if use_camera_obs is None else bool(use_camera_obs),
         camera_names=camera_names,
         camera_heights=camera_heights,
         camera_widths=camera_widths,
@@ -205,6 +207,7 @@ def create_env(
         block_rgba_list=block_rgba_list,
         renderer=renderer,
         renderer_config=resolved_renderer_config,
+        seed=seed,
     )
 
 
