@@ -1,0 +1,29 @@
+{
+  "raw_dataset_root": "corsi_artifacts/motion_base/datasets/corsi_motion_raw_len2_9_n50",
+  "canonical_root": "corsi_artifacts/motion_baseline/canonical/corsi_motion_7joint_k12",
+  "output_root": "corsi_artifacts/motion_baseline/runs/corsi_motion_7joint_k12",
+  "joint_names": [
+    "robot0_joint1",
+    "robot0_joint2",
+    "robot0_joint3",
+    "robot0_joint4",
+    "robot0_joint5",
+    "robot0_joint6",
+    "robot0_joint7"
+  ],
+  "k_samples_per_segment": 12,
+  "split_seed": 20260622,
+  "train_per_length": 40,
+  "val_per_length": 5,
+  "test_per_length": 5,
+  "image_size": 128,
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "weight_decay": 0.00001,
+  "max_epochs": 300,
+  "min_epochs": 100,
+  "early_stopping_patience": 50,
+  "gradient_clip_norm": 1.0,
+  "amp": true,
+  "seeds": [0, 5, 10, 15, 20]
+}

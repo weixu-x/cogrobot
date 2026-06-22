@@ -17,7 +17,6 @@ Handoff for the Corsi / robosuite work in this repository.
 - Latest pushed commit: `5c545043 Add SCALA Corsi raw motion generator`
 - Relevant prior commits:
   - `97aae878 Integrate Corsi visual baseline`
-  - `83eb5882 Add freecam motion baseline smoke`
 
 ## Raw Motion Dataset Handoff
 
@@ -55,47 +54,14 @@ conda run -n robosuite python -m corsi.data.generate_raw \
 
 The raw-only commit intentionally does not keep separate `generate_plan`, `validate_raw`, or raw test files. They were useful during generation, but were removed to keep the submitted code focused on generation.
 
-## Dense Freecam Motion Support
-
-There is still uncommitted dense `freecam_motion_v1` support in the worktree. This is separate from the raw `.npz` dataset.
-
-Purpose:
-
-- Extend the older manifest-based `freecam_ee_xy` exporter with a `dense_motion` payload.
-- Save synchronized fields such as `image_t`, `qpos_t`, `qvel_t`, `arm_action_t`, `ee_pos_t`, `ee_xy_t`, `ee_xy_norm_t`, `block_sequence`, `block_positions`, `tap_timestamps`, and `segment_ids`.
-- Let `FreecamMotionDataset` and `collate_motion_batch` read/pad this dense manifest data.
-
-Current uncommitted files for this line:
-
-- `corsi/data/collate_motion.py`
-- `corsi/data/freecam_motion_dataset.py`
-- `corsi/experiments/visual_base/scripts/export_robosuite_ee_xy_dataset.py`
-- `tests/test_corsi_motion.py`
-- `corsi/experiments/motion_base/`
-- `corsi/experiments/README.md`
-
-Recommendation:
-
-- Keep this work only if the old manifest-based `freecam_motion_v1` path is still needed.
-- If kept, commit it separately from raw generation.
-- Segment-uniform experiment code was deliberately deleted and should not be reintroduced unless explicitly requested.
-
-## Motion Base Scratch Files
-
-Current untracked `motion_base` files are only for dense freecam smoke work:
-
-- `corsi/experiments/motion_base/README.md`
-- `corsi/experiments/motion_base/__init__.py`
-- `corsi/experiments/motion_base/configs/freecam_motion_v1_len2_smoke.yaml`
-
-Keep them only together with dense freecam motion support. Delete them if that support is dropped.
-
 ## Validation Commands
 
 Small checks used after cleanup:
 
 ```bash
-conda run -n robosuite python -m pytest tests/test_corsi_motion.py -q
+conda run -n robosuite python -m pytest \
+  tests/test_corsi_motion_baseline.py \
+  tests/test_corsi_motion_posthoc.py -q
 conda run -n robosuite python -m corsi.data.generate_raw --help
 ```
 
@@ -105,6 +71,5 @@ Broader Corsi smoke check:
 conda run -n robosuite python -m pytest \
   tests/test_corsi_heatmaps.py \
   tests/test_corsi_attention.py \
-  tests/test_corsi_motion.py
+  tests/test_corsi_motion_baseline.py
 ```
-
