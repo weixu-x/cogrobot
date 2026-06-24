@@ -1,0 +1,29 @@
+{
+  "raw_dataset_root": "corsi_artifacts/motion_base/datasets/corsi_motion_raw_len2_9_n50",
+  "canonical_root": "corsi_artifacts/memory_recall_v2/canonical/corsi_memory_recall_v2_k12",
+  "protected_v1_canonical_root": "corsi_artifacts/motion_baseline/canonical/corsi_motion_7joint_k12",
+  "protected_v1_manifest_path": "corsi_artifacts/motion_baseline/canonical/corsi_motion_7joint_k12/manifest.json",
+  "joint_names": [
+    "robot0_joint1",
+    "robot0_joint2",
+    "robot0_joint3",
+    "robot0_joint4",
+    "robot0_joint5",
+    "robot0_joint6",
+    "robot0_joint7"
+  ],
+  "k_samples_per_segment": 12,
+  "image_size": 128,
+  "num_blocks": 9,
+  "eos_token_id": 9,
+  "ignore_index": -100,
+  "max_sequence_length": 9,
+  "length_min": 2,
+  "length_max": 9,
+  "num_trials_per_length": 50,
+  "split_seed": 20260624,
+  "train_per_length": 40,
+  "val_per_length": 5,
+  "test_per_length": 5,
+  "batch_size": 16
+}
