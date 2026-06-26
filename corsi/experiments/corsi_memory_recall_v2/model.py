@@ -24,6 +24,8 @@ class CorsiMemoryRecallV2Config:
     motor_hidden_dim: int = 64
     item_dim: int = 64
     memory_dim: int = 16
+    memory_write_mode: str = "lstm"
+    memory_slot_dim: int = 16
     recall_hidden_dim: int = 64
     recall_token_dim: int = 32
     joint_dim: int = 7
@@ -138,6 +140,22 @@ class CorsiMemoryRecallV2Model(nn.Module):
             nn.ReLU(),
         )
         self.memory_lstm = InstrumentedLSTMCell(cfg.item_dim, cfg.memory_dim)
+        self.memory_slot_item_projection = nn.Linear(cfg.item_dim, cfg.memory_slot_dim)
+        self.memory_slot_position = nn.Parameter(torch.empty(cfg.max_sequence_length, cfg.memory_slot_dim))
+        self.memory_slot_projection = nn.Sequential(
+            nn.Linear(cfg.max_sequence_length * cfg.memory_slot_dim, cfg.memory_dim),
+            nn.LayerNorm(cfg.memory_dim),
+            nn.Tanh(),
+        )
+        self.memory_order_head = nn.Linear(
+            2 * cfg.memory_dim,
+            cfg.max_sequence_length * cfg.num_blocks,
+        )
+        self.final_memory_order_head = nn.Linear(
+            cfg.memory_dim,
+            cfg.max_sequence_length * cfg.num_blocks,
+        )
+        self.final_memory_length_head = nn.Linear(cfg.memory_dim, cfg.max_sequence_length)
         self.memory_to_recall_h = nn.Linear(cfg.memory_dim, cfg.recall_hidden_dim)
         self.memory_to_recall_c = nn.Linear(cfg.memory_dim, cfg.recall_hidden_dim)
         self.recall_token = nn.Parameter(torch.empty(cfg.recall_token_dim))
@@ -151,6 +169,7 @@ class CorsiMemoryRecallV2Model(nn.Module):
 
     def reset_parameters(self) -> None:
         nn.init.normal_(self.recall_token, mean=0.0, std=0.02)
+        nn.init.normal_(self.memory_slot_position, mean=0.0, std=0.02)
 
     def get_recall_inputs(self, batch_size: int, steps: int, *, device: torch.device | None = None) -> Tensor:
         token = self.recall_token
@@ -251,6 +270,14 @@ class CorsiMemoryRecallV2Model(nn.Module):
         *,
         return_traces: bool = False,
     ) -> dict[str, Any]:
+        if self.config.memory_write_mode == "slot_compress":
+            return self._run_slot_memory(
+                item_embeddings,
+                segment_mask,
+                return_traces=return_traces,
+            )
+        if self.config.memory_write_mode != "lstm":
+            raise ValueError(f"unknown memory_write_mode: {self.config.memory_write_mode}")
         batch_size, segments, _ = item_embeddings.shape
         dtype = item_embeddings.dtype
         device = item_embeddings.device
@@ -264,11 +291,15 @@ class CorsiMemoryRecallV2Model(nn.Module):
             "candidate": [],
             "output_gate": [],
         }
+        memory_h: list[Tensor] = []
+        memory_c: list[Tensor] = []
         for segment_index in range(segments):
             h_new, c_new, gates = self.memory_lstm(item_embeddings[:, segment_index], (h, c))
             mask = segment_mask[:, segment_index].to(dtype=dtype).unsqueeze(-1)
             h = h_new * mask + h * (1.0 - mask)
             c = c_new * mask + c * (1.0 - mask)
+            memory_h.append(h)
+            memory_c.append(c)
             if return_traces:
                 trace["h_t"].append(h)
                 trace["c_t"].append(c)
@@ -283,6 +314,102 @@ class CorsiMemoryRecallV2Model(nn.Module):
         result: dict[str, Any] = {
             "final_memory": final_memory,
             "memory_before_noise": memory_before_noise,
+            "final_memory_order_logits": self.final_memory_order_head(memory_before_noise).reshape(
+                batch_size,
+                self.config.max_sequence_length,
+                self.config.num_blocks,
+            ),
+            "final_memory_length_logits": self.final_memory_length_head(memory_before_noise),
+        }
+        if memory_h:
+            memory_states = torch.cat(
+                [torch.stack(memory_h, dim=1), torch.stack(memory_c, dim=1)],
+                dim=-1,
+            )
+            result["memory_order_logits"] = self.memory_order_head(memory_states).reshape(
+                batch_size,
+                segments,
+                self.config.max_sequence_length,
+                self.config.num_blocks,
+            )
+        if return_traces:
+            result["traces"] = _stack_trace(trace, dim=1)
+        return result
+
+    def _run_slot_memory(
+        self,
+        item_embeddings: Tensor,
+        segment_mask: Tensor,
+        *,
+        return_traces: bool = False,
+    ) -> dict[str, Any]:
+        batch_size, segments, _ = item_embeddings.shape
+        if int(segments) > int(self.config.max_sequence_length):
+            raise ValueError(
+                f"slot_compress memory supports at most {self.config.max_sequence_length} segments, got {segments}"
+            )
+        dtype = item_embeddings.dtype
+        device = item_embeddings.device
+        slots = [
+            torch.zeros(batch_size, self.config.memory_slot_dim, dtype=dtype, device=device)
+            for _ in range(self.config.max_sequence_length)
+        ]
+        zero_c = torch.zeros(batch_size, self.config.memory_dim, dtype=dtype, device=device)
+        trace: dict[str, list[Tensor]] = {
+            "h_t": [],
+            "c_t": [],
+            "input_gate": [],
+            "forget_gate": [],
+            "candidate": [],
+            "output_gate": [],
+        }
+        memory_h: list[Tensor] = []
+        memory_c: list[Tensor] = []
+        zero_gate = torch.zeros(batch_size, self.config.memory_dim, dtype=dtype, device=device)
+        for segment_index in range(segments):
+            position = self.memory_slot_position[segment_index].to(device=device, dtype=dtype).unsqueeze(0)
+            write = torch.tanh(self.memory_slot_item_projection(item_embeddings[:, segment_index]) + position)
+            mask = segment_mask[:, segment_index].to(dtype=dtype).unsqueeze(-1)
+            slots[segment_index] = write * mask + slots[segment_index] * (1.0 - mask)
+            slot_tensor = torch.stack(slots, dim=1)
+            h = self.memory_slot_projection(slot_tensor.reshape(batch_size, -1))
+            c = zero_c
+            memory_h.append(h)
+            memory_c.append(c)
+            if return_traces:
+                trace["h_t"].append(h)
+                trace["c_t"].append(c)
+                for key in ("input_gate", "forget_gate", "candidate", "output_gate"):
+                    trace[key].append(zero_gate)
+
+        if memory_h:
+            memory_before_noise = memory_h[-1]
+            memory_states = torch.cat(
+                [torch.stack(memory_h, dim=1), torch.stack(memory_c, dim=1)],
+                dim=-1,
+            )
+        else:
+            memory_before_noise = torch.zeros(batch_size, self.config.memory_dim, dtype=dtype, device=device)
+            memory_states = torch.zeros(batch_size, 0, 2 * self.config.memory_dim, dtype=dtype, device=device)
+        final_memory = memory_before_noise
+        if self.training and self.config.memory_noise_std > 0.0:
+            final_memory = final_memory + torch.randn_like(final_memory) * float(self.config.memory_noise_std)
+
+        result: dict[str, Any] = {
+            "final_memory": final_memory,
+            "memory_before_noise": memory_before_noise,
+            "final_memory_order_logits": self.final_memory_order_head(memory_before_noise).reshape(
+                batch_size,
+                self.config.max_sequence_length,
+                self.config.num_blocks,
+            ),
+            "final_memory_length_logits": self.final_memory_length_head(memory_before_noise),
+            "memory_order_logits": self.memory_order_head(memory_states).reshape(
+                batch_size,
+                segments,
+                self.config.max_sequence_length,
+                self.config.num_blocks,
+            ),
         }
         if return_traces:
             result["traces"] = _stack_trace(trace, dim=1)
@@ -365,6 +492,9 @@ class CorsiMemoryRecallV2Model(nn.Module):
             "item_motor": presentation["item_motor"],
             "final_memory": memory["final_memory"],
             "memory_before_noise": memory["memory_before_noise"],
+            "memory_order_logits": memory["memory_order_logits"],
+            "final_memory_order_logits": memory["final_memory_order_logits"],
+            "final_memory_length_logits": memory["final_memory_length_logits"],
             "recall_inputs": recall["recall_inputs"],
         }
         if return_traces:
@@ -422,6 +552,9 @@ class CorsiMemoryRecallV2Model(nn.Module):
             "item_motor": presentation["item_motor"],
             "final_memory": memory["final_memory"],
             "memory_before_noise": memory["memory_before_noise"],
+            "memory_order_logits": memory["memory_order_logits"],
+            "final_memory_order_logits": memory["final_memory_order_logits"],
+            "final_memory_length_logits": memory["final_memory_length_logits"],
             "recall_memory": recall_memory,
             "recall_inputs": recall["recall_inputs"],
         }

@@ -24,6 +24,15 @@ MODEL_INTERFACE_NOTE = (
     "and optionally losses.compute_stage1_loss/compute_stage2_loss. Model outputs should expose "
     "'token_logits' or 'logits' for Stage 2 and auxiliary prediction tensors for Stage 1."
 )
+STAGE1_WARM_START_PREFIXES = (
+    "visual_encoder.",
+    "visual_lstm.",
+    "motor_lstm.",
+    "joint_head.",
+    "ee_pose_head.",
+    "ee_xy_head.",
+)
+STAGE2_PRIMARY_SELECTION = "full_sequence"
 
 
 def load_config(path: str | Path) -> dict[str, Any]:
@@ -156,7 +165,18 @@ def load_checkpoint(
 ) -> dict[str, Any]:
     payload = torch.load(path, map_location=map_location, weights_only=False)
     if model is not None:
-        model.load_state_dict(payload["model_state_dict"])
+        state = dict(payload["model_state_dict"])
+        target_state = model.state_dict()
+        for key, value in target_state.items():
+            if (
+                key.startswith("memory_order_head.") or key.startswith("final_memory_order_head.")
+                or key.startswith("final_memory_length_head.")
+                or key.startswith("memory_slot_item_projection.")
+                or key.startswith("memory_slot_projection.")
+                or key == "memory_slot_position"
+            ) and key not in state:
+                state[key] = value
+        model.load_state_dict(state)
     if optimizer is not None and payload.get("optimizer_state_dict") is not None:
         optimizer.load_state_dict(payload["optimizer_state_dict"])
     if scaler is not None and payload.get("scaler_state_dict") is not None:
@@ -166,6 +186,92 @@ def load_checkpoint(
     if restore_rng and payload.get("rng_state"):
         restore_rng_state(payload["rng_state"])
     return payload
+
+
+def load_stage1_warm_start(
+    model: nn.Module,
+    checkpoint: str | Path,
+    *,
+    map_location: str | torch.device = "cpu",
+) -> dict[str, Any]:
+    """Load Stage 1 grounding modules into a Stage 2 model, leaving memory/recall random."""
+
+    checkpoint = Path(checkpoint)
+    payload = torch.load(checkpoint, map_location=map_location, weights_only=False)
+    source_stage = int(payload.get("stage", -1))
+    if source_stage != 1:
+        raise ValueError(f"Stage 2 warm-start requires a Stage 1 checkpoint, got stage={source_stage}: {checkpoint}")
+    source_state = payload.get("model_state_dict")
+    if not isinstance(source_state, Mapping):
+        raise ValueError(f"checkpoint does not contain a model_state_dict: {checkpoint}")
+    target_state = model.state_dict()
+    loaded_keys = []
+    skipped: dict[str, str] = {}
+    updated_state = dict(target_state)
+    for key, value in source_state.items():
+        if not any(str(key).startswith(prefix) for prefix in STAGE1_WARM_START_PREFIXES):
+            continue
+        if key not in target_state:
+            skipped[str(key)] = "missing in target model"
+            continue
+        if tuple(target_state[key].shape) != tuple(value.shape):
+            skipped[str(key)] = f"shape {tuple(value.shape)} != {tuple(target_state[key].shape)}"
+            continue
+        updated_state[key] = value.to(device=target_state[key].device, dtype=target_state[key].dtype)
+        loaded_keys.append(str(key))
+    if not loaded_keys:
+        raise ValueError(f"no Stage 1 grounding keys were loaded from {checkpoint}")
+    model.load_state_dict(updated_state, strict=True)
+    return {
+        "path": str(checkpoint),
+        "source_stage": source_stage,
+        "source_epoch": int(payload.get("epoch", -1)),
+        "source_best_metric": float(payload.get("best_metric", float("nan"))),
+        "loaded_key_count": int(len(loaded_keys)),
+        "loaded_prefixes": sorted(
+            {
+                prefix.rstrip(".")
+                for prefix in STAGE1_WARM_START_PREFIXES
+                if any(key.startswith(prefix) for key in loaded_keys)
+            }
+        ),
+        "skipped_key_count": int(len(skipped)),
+        "skipped_keys": dict(list(sorted(skipped.items()))[:20]),
+    }
+
+
+def selection_specs_for_stage(stage: int, val_metrics: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    """Return checkpoint selection scores; tuple ordering implements tie-breaks."""
+
+    val_loss = float(val_metrics.get("loss", 0.0))
+    if int(stage) != 2:
+        return {
+            "val_loss": {
+                "path_name": "best_val_loss.pt",
+                "metric": "negative_val_loss",
+                "score": (-val_loss,),
+            }
+        }
+    full = float(val_metrics.get("full_sequence_accuracy", 0.0))
+    token = float(val_metrics.get("token_accuracy", 0.0))
+    length = float(val_metrics.get("predicted_length_accuracy", 0.0))
+    return {
+        "full_sequence": {
+            "path_name": "best_full_sequence.pt",
+            "metric": "val_full_sequence_accuracy__token_accuracy__predicted_length_accuracy__negative_val_loss",
+            "score": (full, token, length, -val_loss),
+        },
+        "token": {
+            "path_name": "best_token.pt",
+            "metric": "val_token_accuracy__full_sequence_accuracy__predicted_length_accuracy__negative_val_loss",
+            "score": (token, full, length, -val_loss),
+        },
+        "val_loss": {
+            "path_name": "best_val_loss.pt",
+            "metric": "negative_val_loss__full_sequence_accuracy__token_accuracy__predicted_length_accuracy",
+            "score": (-val_loss, full, token, length),
+        },
+    }
 
 
 def validate_training_scope(
@@ -223,6 +329,68 @@ def _call_model(model: nn.Module, batch: Mapping[str, Any], *, stage: int) -> Ma
     raise TypeError("V2 model forward must return a mapping of output tensors")
 
 
+def pad_sequence_metric_batches(
+    predictions: list[torch.Tensor],
+    targets: list[torch.Tensor],
+    masks: list[torch.Tensor],
+    *,
+    ignore_index: int,
+    eos_token_id: int,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Pad batch-local recall outputs so sequence metrics can aggregate them."""
+
+    if not predictions:
+        raise ValueError("predictions must not be empty")
+    max_steps = max(
+        max(int(tensor.shape[1]) for tensor in predictions),
+        max(int(tensor.shape[1]) for tensor in targets),
+        max(int(tensor.shape[1]) for tensor in masks),
+    )
+    padded_predictions = []
+    padded_targets = []
+    padded_masks = []
+    for prediction, target, mask in zip(predictions, targets, masks):
+        pred_steps = int(prediction.shape[1])
+        target_steps = int(target.shape[1])
+        mask_steps = int(mask.shape[1])
+        if pred_steps < max_steps:
+            if prediction.ndim == 3:
+                pad_shape = (prediction.shape[0], max_steps - pred_steps, prediction.shape[2])
+                pred_pad = torch.zeros(pad_shape, dtype=prediction.dtype, device=prediction.device)
+                if 0 <= int(eos_token_id) < int(prediction.shape[2]):
+                    pred_pad[..., int(eos_token_id)] = torch.finfo(prediction.dtype).min
+            elif prediction.ndim == 2:
+                fill_token = 1 if int(eos_token_id) == 0 else 0
+                pred_pad = torch.full(
+                    (prediction.shape[0], max_steps - pred_steps),
+                    fill_token,
+                    dtype=prediction.dtype,
+                    device=prediction.device,
+                )
+            else:
+                raise ValueError(f"expected prediction [B,T] or [B,T,C], got shape={tuple(prediction.shape)}")
+            prediction = torch.cat([prediction, pred_pad], dim=1)
+        if target_steps < max_steps:
+            target_pad = torch.full(
+                (target.shape[0], max_steps - target_steps),
+                int(ignore_index),
+                dtype=target.dtype,
+                device=target.device,
+            )
+            target = torch.cat([target, target_pad], dim=1)
+        if mask_steps < max_steps:
+            mask_pad = torch.zeros((mask.shape[0], max_steps - mask_steps), dtype=mask.dtype, device=mask.device)
+            mask = torch.cat([mask, mask_pad], dim=1)
+        padded_predictions.append(prediction)
+        padded_targets.append(target)
+        padded_masks.append(mask)
+    return (
+        torch.cat(padded_predictions, dim=0),
+        torch.cat(padded_targets, dim=0),
+        torch.cat(padded_masks, dim=0),
+    )
+
+
 def _masked_mse(prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
     while mask.ndim < prediction.ndim:
         mask = mask.unsqueeze(-1)
@@ -257,11 +425,16 @@ def compute_stage1_loss(outputs: Mapping[str, Any], batch: Mapping[str, Any]) ->
         return sum(losses)
 
 
-def compute_stage2_loss(outputs: Mapping[str, Any], batch: Mapping[str, Any]) -> torch.Tensor:
+def compute_stage2_loss(
+    outputs: Mapping[str, Any],
+    batch: Mapping[str, Any],
+    *,
+    weights: Mapping[str, float] | None = None,
+) -> torch.Tensor:
     try:
         from corsi.experiments.corsi_memory_recall_v2.losses import compute_stage2_loss as lane_c_loss
 
-        return lane_c_loss(outputs, batch)
+        return lane_c_loss(outputs, batch, weights=weights)
     except ImportError:
         logits = outputs.get("token_logits", outputs.get("logits"))
         if logits is None:
@@ -283,6 +456,7 @@ def train_epoch(
     device: torch.device,
     stage: int,
     scaler: torch.amp.GradScaler | None = None,
+    loss_weights: Mapping[str, float] | None = None,
 ) -> dict[str, float]:
     model.train()
     total = 0.0
@@ -292,7 +466,11 @@ def train_epoch(
         optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type=device.type, enabled=scaler is not None):
             outputs = _call_model(model, batch, stage=stage)
-            loss = compute_stage1_loss(outputs, batch) if stage == 1 else compute_stage2_loss(outputs, batch)
+            loss = (
+                compute_stage1_loss(outputs, batch)
+                if stage == 1
+                else compute_stage2_loss(outputs, batch, weights=loss_weights)
+            )
         if not torch.isfinite(loss):
             raise FloatingPointError(f"non-finite Stage {stage} loss")
         if scaler is None:
@@ -308,7 +486,14 @@ def train_epoch(
 
 
 @torch.no_grad()
-def evaluate_loader(model: nn.Module, loader: Any, *, device: torch.device, stage: int) -> dict[str, Any]:
+def evaluate_loader(
+    model: nn.Module,
+    loader: Any,
+    *,
+    device: torch.device,
+    stage: int,
+    loss_weights: Mapping[str, float] | None = None,
+) -> dict[str, Any]:
     model.eval()
     losses = []
     predictions = []
@@ -323,7 +508,11 @@ def evaluate_loader(model: nn.Module, loader: Any, *, device: torch.device, stag
             eos_token_id = int(eos_values.flatten()[0].item())
         ignore_index = int(batch.get("ignore_index", ignore_index))
         outputs = _call_model(model, batch, stage=stage)
-        loss = compute_stage1_loss(outputs, batch) if stage == 1 else compute_stage2_loss(outputs, batch)
+        loss = (
+            compute_stage1_loss(outputs, batch)
+            if stage == 1
+            else compute_stage2_loss(outputs, batch, weights=loss_weights)
+        )
         losses.append(float(loss.detach().cpu().item()))
         if stage == 2:
             logits = outputs.get("token_logits", outputs.get("logits"))
@@ -332,10 +521,17 @@ def evaluate_loader(model: nn.Module, loader: Any, *, device: torch.device, stag
             masks.append(batch["targets"]["token_mask"].detach().cpu())
     result: dict[str, Any] = {"loss": float(np.mean(losses)) if losses else 0.0}
     if stage == 2 and predictions:
+        padded_predictions, padded_targets, padded_masks = pad_sequence_metric_batches(
+            predictions,
+            targets,
+            masks,
+            ignore_index=ignore_index,
+            eos_token_id=eos_token_id,
+        )
         metrics = compute_sequence_metrics(
-            torch.cat(predictions, dim=0),
-            torch.cat(targets, dim=0),
-            torch.cat(masks, dim=0),
+            padded_predictions,
+            padded_targets,
+            padded_masks,
             eos_token_id=eos_token_id,
             ignore_index=ignore_index,
         )
@@ -374,6 +570,7 @@ def train_one_run(
     resume: bool = False,
     allow_full_training: bool = False,
     dry_run: bool = False,
+    warm_start_stage1_checkpoint: str | Path | None = None,
 ) -> dict[str, Any]:
     max_epochs = int(max_epochs if max_epochs is not None else config.get("max_epochs", 3))
     validate_training_scope(
@@ -386,6 +583,11 @@ def train_one_run(
     manifest_path = canonical_manifest_path(config)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     run_dir = Path(run_dir)
+    configured_warm_start = warm_start_stage1_checkpoint or config.get("warm_start_stage1_checkpoint", "")
+    warm_start_path = str(configured_warm_start) if configured_warm_start else ""
+    if warm_start_path and int(stage) != 2:
+        raise ValueError("--warm-start-stage1-checkpoint is only valid for Stage 2 training")
+    loss_weights = dict(config.get("loss_weights", {})) if isinstance(config.get("loss_weights", {}), Mapping) else {}
     summary = {
         "stage": int(stage),
         "seed": int(seed),
@@ -394,6 +596,8 @@ def train_one_run(
         "max_epochs": int(max_epochs),
         "overfit_episodes": int(overfit_episodes),
         "dry_run": bool(dry_run),
+        "warm_start_stage1_checkpoint": warm_start_path,
+        "loss_weights": loss_weights,
         "model_interface_note": MODEL_INTERFACE_NOTE,
         "fingerprint_state": dataset_fingerprint(manifest),
     }
@@ -421,6 +625,18 @@ def train_one_run(
         seq_ids=train_ids,
     )
     model = _build_model(config, stage=stage, manifest=manifest).to(device)
+    latest_path = run_dir / "latest.pt"
+    resuming_existing_run = bool(resume and latest_path.exists())
+    warm_start_info: dict[str, Any] | None = None
+    if warm_start_path and not resuming_existing_run:
+        warm_start_info = load_stage1_warm_start(model, warm_start_path, map_location=device)
+    elif warm_start_path and resuming_existing_run:
+        warm_start_info = {
+            "path": warm_start_path,
+            "skipped": "resume checkpoint exists; warm-start is applied only to fresh Stage 2 runs",
+        }
+    if warm_start_info is not None:
+        summary["warm_start"] = warm_start_info
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=float(config.get("learning_rate", 1e-3)),
@@ -429,8 +645,10 @@ def train_one_run(
     scaler = torch.amp.GradScaler("cuda") if device.type == "cuda" and bool(config.get("amp", True)) else None
     start_epoch = 0
     best_metric = -float("inf")
-    latest_path = run_dir / "latest.pt"
-    if resume and latest_path.exists():
+    primary_selection = STAGE2_PRIMARY_SELECTION if int(stage) == 2 else "val_loss"
+    best_scores: dict[str, tuple[float, ...]] = {}
+    best_paths: dict[str, str] = {}
+    if resuming_existing_run:
         payload = load_checkpoint(
             latest_path,
             model=model,
@@ -441,6 +659,10 @@ def train_one_run(
         )
         start_epoch = int(payload.get("epoch", -1)) + 1
         best_metric = float(payload.get("best_metric", best_metric))
+        extra = payload.get("extra") or {}
+        for key, value in dict(extra.get("best_scores", {})).items():
+            best_scores[str(key)] = tuple(float(item) for item in value)
+        best_paths.update({str(key): str(value) for key, value in dict(extra.get("best_paths", {})).items()})
 
     history = []
     best_path = run_dir / "best.pt"
@@ -452,18 +674,66 @@ def train_one_run(
             device=device,
             stage=stage,
             scaler=scaler,
+            loss_weights=loss_weights,
         )
-        val_metrics = evaluate_loader(model, val_loader, device=device, stage=stage)
-        selection = (
-            float(val_metrics.get("full_sequence_accuracy", 0.0))
-            if stage == 2
-            else -float(val_metrics.get("loss", 0.0))
-        )
-        improved = selection > best_metric
-        if improved:
-            best_metric = selection
-        row = {"epoch": epoch, "train": train_metrics, "val": val_metrics, "best_metric": best_metric}
+        val_metrics = evaluate_loader(model, val_loader, device=device, stage=stage, loss_weights=loss_weights)
+        selection_specs = selection_specs_for_stage(stage, val_metrics)
+        selection_scores = {key: tuple(float(item) for item in spec["score"]) for key, spec in selection_specs.items()}
+        primary_score = selection_scores[primary_selection]
+        improved_primary = False
+        row_best_scores = {key: list(value) for key, value in best_scores.items()}
+        row = {
+            "epoch": epoch,
+            "train": train_metrics,
+            "val": val_metrics,
+            "selection_scores": {key: list(value) for key, value in selection_scores.items()},
+        }
         history.append(row)
+        for key, spec in selection_specs.items():
+            score = selection_scores[key]
+            improved = key not in best_scores or score > best_scores[key]
+            if not improved:
+                continue
+            best_scores[key] = score
+            row_best_scores[key] = list(score)
+            path = run_dir / str(spec["path_name"])
+            best_paths[key] = str(path)
+            if key == primary_selection:
+                best_metric = float(score[0])
+                improved_primary = True
+            checkpoint_extra = {
+                "selection_metric": str(spec["metric"]),
+                "selection_key": key,
+                "selection_score": list(score),
+                "best_scores": {score_key: list(score_value) for score_key, score_value in best_scores.items()},
+                "best_paths": dict(best_paths),
+            }
+            if warm_start_info is not None:
+                checkpoint_extra["warm_start"] = warm_start_info
+            save_checkpoint(
+                path,
+                model=model,
+                optimizer=optimizer,
+                scaler=scaler,
+                epoch=epoch,
+                stage=stage,
+                best_metric=float(score[0]),
+                config=config,
+                manifest=manifest,
+                seed=seed,
+                extra=checkpoint_extra,
+            )
+        row["best_metric"] = best_metric
+        row["best_scores"] = row_best_scores
+        latest_extra = {
+            "selection_metric": selection_specs[primary_selection]["metric"],
+            "selection_key": primary_selection,
+            "selection_score": list(primary_score),
+            "best_scores": {key: list(value) for key, value in best_scores.items()},
+            "best_paths": dict(best_paths),
+        }
+        if warm_start_info is not None:
+            latest_extra["warm_start"] = warm_start_info
         save_checkpoint(
             latest_path,
             model=model,
@@ -475,9 +745,9 @@ def train_one_run(
             config=config,
             manifest=manifest,
             seed=seed,
-            extra={"selection_metric": "val_full_sequence_accuracy" if stage == 2 else "negative_val_loss"},
+            extra=latest_extra,
         )
-        if improved:
+        if improved_primary:
             save_checkpoint(
                 best_path,
                 model=model,
@@ -489,9 +759,18 @@ def train_one_run(
                 config=config,
                 manifest=manifest,
                 seed=seed,
-                extra={"selection_metric": "val_full_sequence_accuracy" if stage == 2 else "negative_val_loss"},
+                extra=latest_extra,
             )
-    summary.update({"history": history, "best_metric": float(best_metric), "best_checkpoint": str(best_path)})
+    summary.update(
+        {
+            "history": history,
+            "best_metric": float(best_metric),
+            "best_checkpoint": str(best_path),
+            "primary_selection": primary_selection,
+            "best_checkpoints": {"primary": str(best_path), **dict(best_paths)},
+            "best_scores": {key: list(value) for key, value in best_scores.items()},
+        }
+    )
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return summary
@@ -510,6 +789,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--allow-full-training", action="store_true")
+    parser.add_argument("--warm-start-stage1-checkpoint", default="")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
@@ -526,6 +806,7 @@ def main(argv: list[str] | None = None) -> int:
         resume=bool(args.resume),
         allow_full_training=bool(args.allow_full_training),
         dry_run=bool(args.dry_run),
+        warm_start_stage1_checkpoint=args.warm_start_stage1_checkpoint,
     )
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0

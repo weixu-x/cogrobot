@@ -19,6 +19,7 @@ from corsi.experiments.corsi_memory_recall_v2.train import (
     load_config,
     make_loader,
     move_to_device,
+    pad_sequence_metric_batches,
     resolve_device,
     _build_model,
     _call_model,
@@ -61,10 +62,17 @@ def evaluate_model(
                 eos_token_id=eos_token_id,
                 ignore_index=ignore_index,
             )
+    padded_predictions, padded_targets, padded_masks = pad_sequence_metric_batches(
+        predictions,
+        targets,
+        masks,
+        ignore_index=ignore_index,
+        eos_token_id=eos_token_id,
+    )
     metrics = compute_sequence_metrics(
-        torch.cat(predictions, dim=0),
-        torch.cat(targets, dim=0),
-        torch.cat(masks, dim=0),
+        padded_predictions,
+        padded_targets,
+        padded_masks,
         eos_token_id=eos_token_id,
         ignore_index=ignore_index,
     )

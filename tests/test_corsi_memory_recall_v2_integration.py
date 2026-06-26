@@ -1,5 +1,6 @@
 import torch
 
+from corsi.experiments.corsi_memory_recall_v2.evaluate import evaluate_model
 from corsi.experiments.corsi_memory_recall_v2.analysis import run_causal_sanity_checks
 from corsi.experiments.corsi_memory_recall_v2.train import (
     _build_model,
@@ -91,6 +92,40 @@ def _batch():
     }
 
 
+def _short_batch():
+    torch.manual_seed(29)
+    batch_size = 1
+    segments = 2
+    frames = 2
+    images = torch.randn(batch_size, segments, frames, 3, 128, 128)
+    segment_mask = torch.ones(batch_size, segments, dtype=torch.bool)
+    frame_mask = segment_mask.unsqueeze(-1).expand(batch_size, segments, frames).clone()
+    target_xy = torch.zeros(batch_size, segments, 2)
+    return {
+        "model_inputs": {
+            "images": images,
+            "segment_mask": segment_mask,
+            "frame_mask": frame_mask,
+        },
+        "targets": {
+            "tokens": torch.tensor([[5, 6, 9]], dtype=torch.long),
+            "token_mask": torch.ones(batch_size, 3, dtype=torch.bool),
+            "target_xy": target_xy,
+            "block_xy": target_xy,
+            "joint": torch.randn(batch_size, segments, frames, 7),
+            "ee_pose": torch.randn(batch_size, segments, frames, 7),
+            "ee_xy": torch.randn(batch_size, segments, frames, 2),
+        },
+        "metadata": {
+            "length": torch.tensor([2], dtype=torch.long),
+            "block_order": [[5, 6]],
+            "ignore_index": torch.tensor([-100], dtype=torch.long),
+            "eos_token_id": torch.tensor([9], dtype=torch.long),
+        },
+        "ignore_index": -100,
+    }
+
+
 def test_lane_b_c_d_contract_runs_forward_losses_and_evaluation():
     model = _build_model(_model_config(), stage=2, manifest=_manifest())
     assert model.config.k_samples_per_segment == 2
@@ -120,3 +155,16 @@ def test_lane_b_c_d_contract_runs_forward_losses_and_evaluation():
     assert checks["memory_zero"]["operation"] == "memory_zero"
     assert checks["memory_shuffle"]["operation"] == "memory_shuffle"
     assert isinstance(checks["presentation_order_shuffle"]["decoded_order_changed"], bool)
+
+
+def test_stage2_evaluation_handles_batch_local_token_padding():
+    model = _build_model(_model_config(), stage=2, manifest=_manifest())
+    batches = [_short_batch(), _batch()]
+
+    train_metrics = evaluate_loader(model, batches, device=torch.device("cpu"), stage=2)
+    assert train_metrics["sequence_count"] == 3
+    assert "full_sequence_accuracy" in train_metrics
+
+    eval_metrics = evaluate_model(model, batches, device=torch.device("cpu"))
+    assert eval_metrics["sequence_count"] == 3
+    assert "token_accuracy" in eval_metrics

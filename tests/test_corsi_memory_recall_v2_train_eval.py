@@ -8,8 +8,11 @@ from corsi.experiments.corsi_memory_recall_v2.analysis import (
 )
 from corsi.experiments.corsi_memory_recall_v2.train import (
     CHECKPOINT_VERSION,
+    _build_model,
     load_checkpoint,
+    load_stage1_warm_start,
     save_checkpoint,
+    selection_specs_for_stage,
     validate_training_scope,
 )
 
@@ -137,6 +140,105 @@ def test_checkpoint_payload_contains_resume_metadata(tmp_path):
     assert loaded["fingerprint_state"]["canonical_fingerprint"] == "abc123"
     assert loaded["fingerprint_state"]["split_counts"] == {"train": 1, "val": 0, "test": 0}
     assert loaded["config"]["learning_rate"] == 0.01
+
+
+def _tiny_model_config():
+    return {
+        "raw_dataset_root": "ignored_by_model_builder",
+        "joint_names": [f"joint_{index}" for index in range(7)],
+        "k_samples_per_segment": 2,
+        "max_sequence_length": 3,
+        "num_blocks": 9,
+        "eos_token_id": 9,
+        "ignore_index": -100,
+        "cnn_out": 8,
+        "visual_hidden": 8,
+        "motor_hidden": 8,
+        "item_dim": 8,
+        "D_mem": 4,
+        "recall_hidden": 8,
+        "recall_token_dim": 4,
+        "memory_noise_std": 0.0,
+    }
+
+
+def _tiny_manifest():
+    return {
+        "schema_version": "scala_corsi_memory_recall_v2_canonical_v1",
+        "canonical_fingerprint": "synthetic",
+        "normalization": {"source": "synthetic"},
+        "k_samples_per_segment": 2,
+        "max_sequence_length": 3,
+        "num_blocks": 9,
+        "eos_token_id": 9,
+        "ignore_index": -100,
+        "samples": [{"seq_id": "a"}],
+        "split": {"train": ["a"], "val": [], "test": []},
+    }
+
+
+def test_stage2_warm_start_loads_only_grounding_modules(tmp_path):
+    source = _build_model(_tiny_model_config(), stage=1, manifest=_tiny_manifest())
+    target = _build_model(_tiny_model_config(), stage=2, manifest=_tiny_manifest())
+    for name, parameter in source.named_parameters():
+        if name.startswith(("visual_encoder.", "visual_lstm.", "motor_lstm.", "joint_head.", "ee_pose_head.", "ee_xy_head.")):
+            parameter.data.fill_(0.125)
+        elif name.startswith(("memory_lstm.", "memory_to_recall_", "recall_lstm.", "block_head.", "coord_head.")):
+            parameter.data.fill_(0.875)
+    before_memory = target.state_dict()["memory_lstm.weight_ih"].clone()
+    before_recall_token = target.state_dict()["recall_token"].clone()
+    checkpoint = tmp_path / "stage1.pt"
+    save_checkpoint(
+        checkpoint,
+        model=source,
+        optimizer=None,
+        scaler=None,
+        epoch=7,
+        stage=1,
+        best_metric=-0.25,
+        config=_tiny_model_config(),
+        manifest=_tiny_manifest(),
+        seed=0,
+    )
+
+    info = load_stage1_warm_start(target, checkpoint)
+
+    assert info["source_stage"] == 1
+    assert {"visual_encoder", "visual_lstm", "motor_lstm", "joint_head", "ee_pose_head", "ee_xy_head"} <= set(
+        info["loaded_prefixes"]
+    )
+    target_state = target.state_dict()
+    source_state = source.state_dict()
+    torch.testing.assert_close(target_state["visual_lstm.weight_ih"], source_state["visual_lstm.weight_ih"])
+    torch.testing.assert_close(target_state["motor_lstm.weight_ih"], source_state["motor_lstm.weight_ih"])
+    torch.testing.assert_close(target_state["joint_head.weight"], source_state["joint_head.weight"])
+    torch.testing.assert_close(target_state["memory_lstm.weight_ih"], before_memory)
+    torch.testing.assert_close(target_state["recall_token"], before_recall_token)
+
+
+def test_stage2_selection_uses_token_tie_break_when_full_sequence_is_flat():
+    early = selection_specs_for_stage(
+        2,
+        {
+            "loss": 2.0,
+            "full_sequence_accuracy": 0.0,
+            "token_accuracy": 0.2,
+            "predicted_length_accuracy": 0.25,
+        },
+    )
+    later = selection_specs_for_stage(
+        2,
+        {
+            "loss": 1.9,
+            "full_sequence_accuracy": 0.0,
+            "token_accuracy": 0.25,
+            "predicted_length_accuracy": 0.9,
+        },
+    )
+
+    assert later["full_sequence"]["score"] > early["full_sequence"]["score"]
+    assert later["token"]["score"] > early["token"]["score"]
+    assert selection_specs_for_stage(1, {"loss": 0.4})["val_loss"]["score"] == (-0.4,)
 
 
 def test_training_scope_refuses_full_training_by_default():

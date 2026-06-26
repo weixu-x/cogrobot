@@ -11,6 +11,9 @@ from torch.nn import functional as F
 
 DEFAULT_LOSS_WEIGHTS = {
     "seq": 1.0,
+    "memory_order": 0.3,
+    "memory_order_final": 0.0,
+    "memory_length": 0.0,
     "coord": 0.05,
     "joint": 0.1,
     "ee_pose": 0.05,
@@ -76,6 +79,123 @@ def weak_coord_loss(
     return _masked_mean(per_step, valid)
 
 
+def memory_order_prefix_loss(
+    logits: Tensor,
+    target_tokens: Tensor,
+    *,
+    segment_mask: Tensor,
+    token_mask: Tensor | None = None,
+    eos_token_id: int = 9,
+    ignore_index: int = -100,
+) -> Tensor:
+    """Prefix CE from each memory update state to all block identities seen so far."""
+
+    if logits.ndim != 4:
+        raise ValueError(f"expected memory order logits [B,L,P,C], got shape={tuple(logits.shape)}")
+    if segment_mask.shape != logits.shape[:2]:
+        raise ValueError(
+            f"segment_mask shape {tuple(segment_mask.shape)} does not match logits [B,L]={tuple(logits.shape[:2])}"
+        )
+    batch_size, updates, positions, classes = logits.shape
+    del batch_size
+    del classes
+    targets = target_tokens[:, :positions].to(device=logits.device)
+    if targets.shape[1] < positions:
+        pad = torch.full(
+            (targets.shape[0], positions - targets.shape[1]),
+            int(ignore_index),
+            dtype=targets.dtype,
+            device=targets.device,
+        )
+        targets = torch.cat([targets, pad], dim=1)
+    valid_position = targets.ne(int(ignore_index)) & targets.ne(int(eos_token_id))
+    if token_mask is not None:
+        mask = token_mask[:, :positions].to(device=logits.device, dtype=torch.bool)
+        if mask.shape[1] < positions:
+            pad = torch.zeros(
+                (mask.shape[0], positions - mask.shape[1]),
+                dtype=torch.bool,
+                device=mask.device,
+            )
+            mask = torch.cat([mask, pad], dim=1)
+        valid_position = valid_position & mask
+    update_valid = segment_mask[:, :updates].to(device=logits.device, dtype=torch.bool)
+    update_index = torch.arange(updates, device=logits.device).view(1, updates, 1)
+    position_index = torch.arange(positions, device=logits.device).view(1, 1, positions)
+    prefix_valid = position_index <= update_index
+    valid = update_valid.unsqueeze(-1) & valid_position.unsqueeze(1) & prefix_valid
+    if not bool(valid.any()):
+        return logits.sum() * 0.0
+    expanded_targets = targets.unsqueeze(1).expand(-1, updates, -1)
+    safe_targets = expanded_targets.masked_fill(~valid, 0)
+    per_token = F.cross_entropy(
+        logits.reshape(-1, logits.shape[-1]),
+        safe_targets.reshape(-1),
+        reduction="none",
+    ).reshape_as(valid.float())
+    exposure = (update_valid.unsqueeze(-1) & prefix_valid).sum(dim=1).clamp_min(1).to(dtype=logits.dtype)
+    weights = valid.to(dtype=logits.dtype) / exposure.unsqueeze(1)
+    return (per_token * weights).sum() / weights.sum().clamp_min(1.0)
+
+
+def final_memory_order_loss(
+    logits: Tensor,
+    target_tokens: Tensor,
+    *,
+    token_mask: Tensor | None = None,
+    eos_token_id: int = 9,
+    ignore_index: int = -100,
+) -> Tensor:
+    """CE from final memory state to the full ordered block sequence."""
+
+    if logits.ndim != 3:
+        raise ValueError(f"expected final memory order logits [B,P,C], got shape={tuple(logits.shape)}")
+    targets = target_tokens[:, : logits.shape[1]].to(device=logits.device)
+    if targets.shape[1] < logits.shape[1]:
+        pad = torch.full(
+            (targets.shape[0], logits.shape[1] - targets.shape[1]),
+            int(ignore_index),
+            dtype=targets.dtype,
+            device=targets.device,
+        )
+        targets = torch.cat([targets, pad], dim=1)
+    valid = targets.ne(int(ignore_index)) & targets.ne(int(eos_token_id))
+    if token_mask is not None:
+        mask = token_mask[:, : logits.shape[1]].to(device=logits.device, dtype=torch.bool)
+        if mask.shape[1] < logits.shape[1]:
+            pad = torch.zeros(
+                (mask.shape[0], logits.shape[1] - mask.shape[1]),
+                dtype=torch.bool,
+                device=mask.device,
+            )
+            mask = torch.cat([mask, pad], dim=1)
+        valid = valid & mask
+    if not bool(valid.any()):
+        return logits.sum() * 0.0
+    return F.cross_entropy(logits[valid], targets[valid])
+
+
+def final_memory_length_loss(
+    logits: Tensor,
+    target_tokens: Tensor,
+    *,
+    token_mask: Tensor | None = None,
+    eos_token_id: int = 9,
+    ignore_index: int = -100,
+) -> Tensor:
+    """CE from final memory state to the number of recalled blocks."""
+
+    if logits.ndim != 2:
+        raise ValueError(f"expected final memory length logits [B,C], got shape={tuple(logits.shape)}")
+    tokens = target_tokens.to(device=logits.device)
+    valid = tokens.ne(int(ignore_index)) & tokens.ne(int(eos_token_id))
+    if token_mask is not None:
+        valid = valid & token_mask.to(device=logits.device, dtype=torch.bool)
+    lengths = valid.sum(dim=1).clamp(min=1, max=logits.shape[-1]).long()
+    labels = lengths - 1
+    return F.cross_entropy(logits, labels)
+
+
 def pose_auxiliary_loss(pred: Tensor, target: Tensor, *, mask: Tensor | None = None) -> Tensor:
     """Masked MSE for per-frame pose-like auxiliary targets."""
 
@@ -108,6 +228,40 @@ def combined_v2_loss(
     seq = sequence_cross_entropy_loss(outputs["logits"], targets["tokens"].to(device=device), ignore_index=ignore_index)
     result["seq_loss"] = seq
     total = total + float(loss_weights["seq"]) * seq
+
+    if "memory_order_logits" in outputs and float(loss_weights["memory_order"]) != 0.0:
+        memory_order = memory_order_prefix_loss(
+            outputs["memory_order_logits"],
+            targets["tokens"],
+            segment_mask=frame_mask.any(dim=-1) if frame_mask is not None and frame_mask.ndim == 3 else targets["block_xy"].new_ones(outputs["memory_order_logits"].shape[:2], dtype=torch.bool),
+            token_mask=targets.get("token_mask"),
+            eos_token_id=eos_token_id,
+            ignore_index=ignore_index,
+        )
+        result["memory_order_loss"] = memory_order
+        total = total + float(loss_weights["memory_order"]) * memory_order
+
+    if "final_memory_order_logits" in outputs and float(loss_weights["memory_order_final"]) != 0.0:
+        final_memory_order = final_memory_order_loss(
+            outputs["final_memory_order_logits"],
+            targets["tokens"],
+            token_mask=targets.get("token_mask"),
+            eos_token_id=eos_token_id,
+            ignore_index=ignore_index,
+        )
+        result["final_memory_order_loss"] = final_memory_order
+        total = total + float(loss_weights["memory_order_final"]) * final_memory_order
+
+    if "final_memory_length_logits" in outputs and float(loss_weights["memory_length"]) != 0.0:
+        final_memory_length = final_memory_length_loss(
+            outputs["final_memory_length_logits"],
+            targets["tokens"],
+            token_mask=targets.get("token_mask"),
+            eos_token_id=eos_token_id,
+            ignore_index=ignore_index,
+        )
+        result["final_memory_length_loss"] = final_memory_length
+        total = total + float(loss_weights["memory_length"]) * final_memory_length
 
     if "coord" in outputs and ("target_xy" in targets or "block_xy" in targets) and float(loss_weights["coord"]) != 0.0:
         target_xy = targets.get("target_xy", targets.get("block_xy"))

@@ -22,6 +22,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--allow-full-training", action="store_true")
+    parser.add_argument("--warm-start-stage1-checkpoint", default="")
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
@@ -41,6 +42,7 @@ def main(argv: list[str] | None = None) -> int:
             resume=bool(args.resume),
             allow_full_training=bool(args.allow_full_training),
             dry_run=bool(args.dry_run),
+            warm_start_stage1_checkpoint=args.warm_start_stage1_checkpoint,
         )
         summaries.append(summary)
         print(json.dumps(summary, indent=2, sort_keys=True), flush=True)

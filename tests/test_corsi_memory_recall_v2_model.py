@@ -1,9 +1,13 @@
 import inspect
 
+import pytest
 import torch
 
 from corsi.experiments.corsi_memory_recall_v2.losses import (
     combined_v2_loss,
+    final_memory_length_loss,
+    final_memory_order_loss,
+    memory_order_prefix_loss,
     sequence_cross_entropy_loss,
     weak_coord_loss,
 )
@@ -58,6 +62,9 @@ def test_forward_shapes_on_segmented_rgb_cpu():
     assert outputs["pred_ee_xy"].shape == (2, 3, 4, 2)
     assert outputs["item_embeddings"].shape == (2, 3, 14)
     assert outputs["final_memory"].shape == (2, 8)
+    assert outputs["memory_order_logits"].shape == (2, 3, 4, 9)
+    assert outputs["final_memory_order_logits"].shape == (2, 4, 9)
+    assert outputs["final_memory_length_logits"].shape == (2, 4)
     assert outputs["pred_joint"][-1, -1].abs().sum().item() == 0.0
 
 
@@ -153,6 +160,41 @@ def test_recall_depends_only_on_final_memory_bridge():
     torch.testing.assert_close(recalled_a["logits"], recalled_b["logits"])
 
 
+def test_slot_compress_memory_write_mode_outputs_bottleneck_and_traces():
+    model = CorsiMemoryRecallV2Model(_small_config(memory_write_mode="slot_compress", memory_slot_dim=5))
+    images, segment_mask, frame_mask = _inputs(batch_size=2, segments=3, frames=4)
+
+    outputs = model(
+        images=images,
+        segment_mask=segment_mask,
+        frame_mask=frame_mask,
+        max_recall_steps=5,
+        return_traces=True,
+    )
+
+    assert outputs["final_memory"].shape == (2, 8)
+    assert outputs["memory_order_logits"].shape == (2, 3, 4, 9)
+    assert outputs["final_memory_order_logits"].shape == (2, 4, 9)
+    assert outputs["final_memory_length_logits"].shape == (2, 4)
+    for key in ["h_t", "c_t", "input_gate", "forget_gate", "candidate", "output_gate"]:
+        assert outputs["traces"]["memory"][key].shape == (2, 3, 8)
+
+    items = outputs["item_embeddings"][:1, :2].detach()
+    mask = torch.ones(1, 2, dtype=torch.bool)
+    forward_memory = model.run_memory(items, mask)["final_memory"]
+    reversed_memory = model.run_memory(items.flip(dims=[1]), mask)["final_memory"]
+    assert not torch.allclose(forward_memory, reversed_memory)
+
+
+def test_unknown_memory_write_mode_is_rejected():
+    model = CorsiMemoryRecallV2Model(_small_config(memory_write_mode="unknown"))
+    item_embeddings = torch.zeros(1, 1, model.config.item_dim)
+    segment_mask = torch.ones(1, 1, dtype=torch.bool)
+
+    with pytest.raises(ValueError, match="unknown memory_write_mode"):
+        model.run_memory(item_embeddings, segment_mask)
+
+
 def test_sequence_ce_keeps_eos_and_ignores_padding():
     logits = torch.zeros(1, 4, 10)
     targets = torch.tensor([[2, 9, -100, -100]])
@@ -194,11 +236,152 @@ def test_weak_coord_loss_excludes_eos_and_ignore_steps():
     torch.testing.assert_close(loss, torch.tensor(0.0))
 
 
+def test_memory_order_prefix_loss_supervises_written_prefix_only():
+    logits = torch.zeros(1, 3, 4, 9)
+    targets = torch.tensor([[2, 4, 9, -100]])
+    token_mask = torch.tensor([[True, True, True, False]])
+    segment_mask = torch.tensor([[True, True, False]])
+    logits[0, 0, 0, 2] = 8.0
+    logits[0, 1, 0, 2] = 8.0
+    logits[0, 1, 1, 4] = 8.0
+
+    baseline = memory_order_prefix_loss(
+        logits,
+        targets,
+        segment_mask=segment_mask,
+        token_mask=token_mask,
+        eos_token_id=9,
+        ignore_index=-100,
+    )
+
+    changed_invalid = logits.clone()
+    changed_invalid[0, 0, 1, 8] = 1000.0
+    changed_invalid[0, 1, 2, 8] = 1000.0
+    changed_invalid[0, 2, :, 8] = 1000.0
+    torch.testing.assert_close(
+        baseline,
+        memory_order_prefix_loss(
+            changed_invalid,
+            targets,
+            segment_mask=segment_mask,
+            token_mask=token_mask,
+            eos_token_id=9,
+            ignore_index=-100,
+        ),
+    )
+
+    wrong_written_prefix = logits.clone()
+    wrong_written_prefix[0, 1, 1, 4] = -8.0
+    wrong_written_prefix[0, 1, 1, 1] = 8.0
+    assert (
+        memory_order_prefix_loss(
+            wrong_written_prefix,
+            targets,
+            segment_mask=segment_mask,
+            token_mask=token_mask,
+            eos_token_id=9,
+            ignore_index=-100,
+        )
+        > baseline
+    )
+
+
+def test_memory_order_prefix_loss_balances_serial_position_exposure():
+    logits = torch.zeros(1, 2, 2, 3, requires_grad=True)
+    targets = torch.tensor([[0, 1]])
+    token_mask = torch.tensor([[True, True]])
+    segment_mask = torch.tensor([[True, True]])
+
+    loss = memory_order_prefix_loss(
+        logits,
+        targets,
+        segment_mask=segment_mask,
+        token_mask=token_mask,
+        eos_token_id=9,
+        ignore_index=-100,
+    )
+    loss.backward()
+
+    pos0_target_grad = logits.grad[0, 0, 0, 0] + logits.grad[0, 1, 0, 0]
+    pos1_target_grad = logits.grad[0, 1, 1, 1]
+    torch.testing.assert_close(pos0_target_grad, pos1_target_grad)
+
+
+def test_final_memory_order_loss_ignores_eos_and_padding():
+    logits = torch.zeros(1, 4, 9)
+    targets = torch.tensor([[2, 4, 9, -100]])
+    token_mask = torch.tensor([[True, True, True, False]])
+    logits[0, 0, 2] = 8.0
+    logits[0, 1, 4] = 8.0
+
+    baseline = final_memory_order_loss(
+        logits,
+        targets,
+        token_mask=token_mask,
+        eos_token_id=9,
+        ignore_index=-100,
+    )
+
+    changed_invalid = logits.clone()
+    changed_invalid[0, 2, 8] = 1000.0
+    changed_invalid[0, 3, 8] = 1000.0
+    torch.testing.assert_close(
+        baseline,
+        final_memory_order_loss(
+            changed_invalid,
+            targets,
+            token_mask=token_mask,
+            eos_token_id=9,
+            ignore_index=-100,
+        ),
+    )
+
+    wrong_block = logits.clone()
+    wrong_block[0, 1, 4] = -8.0
+    wrong_block[0, 1, 1] = 8.0
+    assert final_memory_order_loss(
+        wrong_block,
+        targets,
+        token_mask=token_mask,
+        eos_token_id=9,
+        ignore_index=-100,
+    ) > baseline
+
+
+def test_final_memory_length_loss_counts_block_tokens_only():
+    logits = torch.zeros(2, 4)
+    targets = torch.tensor([[2, 4, 9, -100], [1, 3, 5, 9]])
+    token_mask = torch.tensor([[True, True, True, False], [True, True, True, True]])
+    logits[0, 1] = 8.0
+    logits[1, 2] = 8.0
+
+    baseline = final_memory_length_loss(
+        logits,
+        targets,
+        token_mask=token_mask,
+        eos_token_id=9,
+        ignore_index=-100,
+    )
+
+    wrong_eos_count = logits.clone()
+    wrong_eos_count[0, 2] = 1000.0
+    assert final_memory_length_loss(
+        wrong_eos_count,
+        targets,
+        token_mask=token_mask,
+        eos_token_id=9,
+        ignore_index=-100,
+    ) > baseline
+
+
 def test_combined_loss_uses_auxiliary_masks_and_weights():
     torch.manual_seed(3)
     outputs = {
         "logits": torch.randn(1, 3, 10, requires_grad=True),
         "coord": torch.zeros(1, 3, 2),
+        "memory_order_logits": torch.zeros(1, 2, 4, 9, requires_grad=True),
+        "final_memory_order_logits": torch.zeros(1, 4, 9, requires_grad=True),
+        "final_memory_length_logits": torch.zeros(1, 4, requires_grad=True),
         "pred_joint": torch.zeros(1, 2, 2, 7),
         "pred_ee_pose": torch.zeros(1, 2, 2, 7),
         "pred_ee_xy": torch.zeros(1, 2, 2, 2),
@@ -214,9 +397,27 @@ def test_combined_loss_uses_auxiliary_masks_and_weights():
     targets["joint"][:, 1] = 100.0
     frame_mask = torch.tensor([[[True, True], [False, False]]])
 
-    losses = combined_v2_loss(outputs, targets, frame_mask=frame_mask)
+    losses = combined_v2_loss(
+        outputs,
+        targets,
+        frame_mask=frame_mask,
+        weights={"memory_order_final": 0.5, "memory_length": 0.5},
+    )
 
-    assert set(losses) == {"seq_loss", "coord_loss", "joint_loss", "ee_pose_loss", "ee_xy_loss", "loss"}
+    assert set(losses) == {
+        "seq_loss",
+        "memory_order_loss",
+        "final_memory_order_loss",
+        "final_memory_length_loss",
+        "coord_loss",
+        "joint_loss",
+        "ee_pose_loss",
+        "ee_xy_loss",
+        "loss",
+    }
+    assert losses["memory_order_loss"].requires_grad
+    assert losses["final_memory_order_loss"].requires_grad
+    assert losses["final_memory_length_loss"].requires_grad
     torch.testing.assert_close(losses["coord_loss"], torch.tensor(0.0))
     torch.testing.assert_close(losses["joint_loss"], torch.tensor(0.0))
     assert losses["loss"].requires_grad
