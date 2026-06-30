@@ -15,6 +15,7 @@ from corsi.experiments.corsi_memory_recall_v2.analysis import (
 )
 from corsi.experiments.corsi_memory_recall_v2.train import (
     canonical_manifest_path,
+    compute_stage2_loss,
     load_checkpoint,
     load_config,
     make_loader,
@@ -34,12 +35,19 @@ def evaluate_model(
     device: torch.device,
     eos_token_id: int = 9,
     ignore_index: int = -100,
+    loss_weights: Mapping[str, float] | None = None,
     sanity_checks: bool = False,
+    split: str | None = None,
 ) -> dict[str, Any]:
     model.eval()
     predictions = []
     targets = []
     masks = []
+    loss_component_totals: dict[str, float] = {}
+    loss_component_count = 0
+    row_metadata: list[dict[str, Any]] = []
+    predicted_xy_rows: list[list[list[float]]] = []
+    target_xy_rows: list[list[list[float]]] = []
     sanity: dict[str, Any] | None = None
     for batch in loader:
         batch = move_to_device(batch, device)
@@ -55,6 +63,37 @@ def evaluate_model(
         predictions.append(logits.detach().cpu())
         targets.append(batch["targets"]["tokens"].detach().cpu())
         masks.append(batch["targets"]["token_mask"].detach().cpu())
+        loss_components = compute_stage2_loss(
+            outputs,
+            batch,
+            weights=loss_weights,
+            return_components=True,
+        )
+        for key, value in loss_components.items():
+            if torch.is_tensor(value) and value.ndim == 0:
+                loss_component_totals[key] = loss_component_totals.get(key, 0.0) + float(
+                    value.detach().cpu().item()
+                )
+        loss_component_count += 1
+
+        batch_size = int(batch["targets"]["tokens"].shape[0])
+        seq_ids = metadata.get("seq_id")
+        lengths = metadata.get("length")
+        for row_index in range(batch_size):
+            row: dict[str, Any] = {}
+            if split is not None:
+                row["split"] = split
+            if isinstance(seq_ids, list) and row_index < len(seq_ids):
+                row["episode_id"] = str(seq_ids[row_index])
+            if torch.is_tensor(lengths):
+                row["length"] = int(lengths.detach().cpu().flatten()[row_index].item())
+            row_metadata.append(row)
+        coord = outputs.get("coord")
+        if torch.is_tensor(coord):
+            predicted_xy_rows.extend(coord.detach().cpu().tolist())
+        target_xy = batch["targets"].get("target_xy", batch["targets"].get("block_xy"))
+        if torch.is_tensor(target_xy):
+            target_xy_rows.extend(target_xy.detach().cpu().tolist())
         if sanity_checks and sanity is None:
             sanity = run_causal_sanity_checks(
                 model,
@@ -76,6 +115,20 @@ def evaluate_model(
         eos_token_id=eos_token_id,
         ignore_index=ignore_index,
     )
+    if loss_component_count:
+        metrics.update(
+            {
+                key: float(value / loss_component_count)
+                for key, value in sorted(loss_component_totals.items())
+            }
+        )
+    for row_index, row in enumerate(metrics.get("rows", [])):
+        if row_index < len(row_metadata):
+            row.update(row_metadata[row_index])
+        if row_index < len(predicted_xy_rows):
+            row["predicted_xy"] = predicted_xy_rows[row_index][: len(row.get("predicted_tokens", []))]
+        if row_index < len(target_xy_rows):
+            row["target_xy"] = target_xy_rows[row_index][: int(row.get("target_length", 0))]
     if sanity is not None:
         metrics["causal_sanity_checks"] = sanity
     return metrics
@@ -102,7 +155,9 @@ def evaluate_checkpoint(
         device=device,
         eos_token_id=int(manifest.get("eos_token_id", 9)),
         ignore_index=int(manifest.get("ignore_index", -100)),
+        loss_weights=dict(config.get("loss_weights", {})) if isinstance(config.get("loss_weights", {}), Mapping) else {},
         sanity_checks=sanity_checks,
+        split=split,
     )
     metrics.update(
         {

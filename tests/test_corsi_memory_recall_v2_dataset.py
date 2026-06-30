@@ -240,6 +240,42 @@ def test_episode_split_and_train_only_normalization(tmp_path):
     assert manifest["normalization"]["source"] == "train_only"
 
 
+def test_canonical_preserves_explicit_raw_split_labels(tmp_path):
+    raw_root = tmp_path / "raw"
+    raw_root.mkdir()
+    _write_synthetic_raw(raw_root)
+    manifest_path = raw_root / "manifest.json"
+    raw_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    split_by_trial = {"000": "train", "001": "val", "002": "test"}
+    for sample in raw_manifest["samples"]:
+        split = split_by_trial[str(sample["seq_id"]).rsplit("trial", 1)[1]]
+        sample["split"] = split
+    manifest_path.write_text(json.dumps(raw_manifest), encoding="utf-8")
+
+    config = {
+        "raw_dataset_root": str(raw_root),
+        "canonical_root": str(tmp_path / "canonical"),
+        "joint_names": DEFAULT_JOINT_NAMES,
+        "k_samples_per_segment": 3,
+        "num_blocks": 9,
+        "eos_token_id": 9,
+        "ignore_index": -100,
+        "max_sequence_length": 3,
+        "split_length_counts": {
+            "train": {"2": 1, "3": 1},
+            "val": {"2": 1, "3": 1},
+            "test": {"2": 1, "3": 1},
+        },
+    }
+    result = build_canonical_dataset(config, overwrite=True)
+    manifest = json.loads(Path(result["manifest_path"]).read_text(encoding="utf-8"))
+
+    assert manifest["split_length_counts"] == config["split_length_counts"]
+    assert all(str(seq_id).endswith("trial000") for seq_id in manifest["split"]["train"])
+    assert all(str(seq_id).endswith("trial001") for seq_id in manifest["split"]["val"])
+    assert all(str(seq_id).endswith("trial002") for seq_id in manifest["split"]["test"])
+
+
 def test_dataset_and_collate_separate_inputs_from_targets(tmp_path):
     _, manifest_path = _build_tiny_canonical(tmp_path)
     dataset = CorsiMemoryRecallV2Dataset(manifest_path, split="train")

@@ -1,0 +1,15 @@
+{
+  "figure_root": "reports/figures/v2_lstm_onset_20260629",
+  "figures": [
+    "reports/figures/v2_lstm_onset_20260629/milestone_checkpoint_comparison.png",
+    "reports/figures/v2_lstm_onset_20260629/per_length_test_exact_heatmap.png",
+    "reports/figures/v2_lstm_onset_20260629/per_length_val_duplicate_heatmap.png",
+    "reports/figures/v2_lstm_onset_20260629/per_length_val_exact_heatmap.png",
+    "reports/figures/v2_lstm_onset_20260629/per_length_val_token_heatmap.png",
+    "reports/figures/v2_lstm_onset_20260629/prediction_progression_test.png",
+    "reports/figures/v2_lstm_onset_20260629/prediction_progression_val.png",
+    "reports/figures/v2_lstm_onset_20260629/slot_vs_lstm_comparison.png",
+    "reports/figures/v2_lstm_onset_20260629/training_loss_curves.png",
+    "reports/figures/v2_lstm_onset_20260629/validation_metric_curves.png"
+  ]
+}

@@ -26,6 +26,7 @@ class CorsiMemoryRecallV2Config:
     memory_dim: int = 16
     memory_write_mode: str = "lstm"
     memory_slot_dim: int = 16
+    recall_readout_mode: str = "final"
     recall_hidden_dim: int = 64
     recall_token_dim: int = 32
     joint_dim: int = 7
@@ -147,10 +148,18 @@ class CorsiMemoryRecallV2Model(nn.Module):
             nn.LayerNorm(cfg.memory_dim),
             nn.Tanh(),
         )
+        self.memory_binding_item_projection = nn.Linear(cfg.item_dim, cfg.memory_slot_dim)
+        self.memory_binding_context = nn.Parameter(torch.empty(cfg.max_sequence_length, cfg.memory_slot_dim))
+        self.memory_binding_projection = nn.Sequential(
+            nn.Linear(cfg.memory_slot_dim * cfg.memory_slot_dim, cfg.memory_dim),
+            nn.LayerNorm(cfg.memory_dim),
+            nn.Tanh(),
+        )
         self.memory_order_head = nn.Linear(
             2 * cfg.memory_dim,
             cfg.max_sequence_length * cfg.num_blocks,
         )
+        self.memory_identity_head = nn.Linear(2 * cfg.memory_dim, cfg.num_blocks)
         self.final_memory_order_head = nn.Linear(
             cfg.memory_dim,
             cfg.max_sequence_length * cfg.num_blocks,
@@ -160,6 +169,10 @@ class CorsiMemoryRecallV2Model(nn.Module):
         self.memory_to_recall_c = nn.Linear(cfg.memory_dim, cfg.recall_hidden_dim)
         self.recall_token = nn.Parameter(torch.empty(cfg.recall_token_dim))
         self.recall_lstm = InstrumentedLSTMCell(cfg.recall_token_dim, cfg.recall_hidden_dim)
+        self.memory_attention_key = nn.Linear(2 * cfg.memory_dim, cfg.recall_hidden_dim)
+        self.memory_attention_value = nn.Linear(2 * cfg.memory_dim, cfg.recall_hidden_dim)
+        self.memory_attention_query = nn.Linear(cfg.recall_hidden_dim, cfg.recall_hidden_dim)
+        self.recall_context_projection = nn.Linear(2 * cfg.recall_hidden_dim, cfg.recall_hidden_dim)
         self.block_head = nn.Linear(cfg.recall_hidden_dim, cfg.num_tokens)
         self.coord_head = nn.Linear(cfg.recall_hidden_dim, 2)
         self.joint_head = nn.Linear(cfg.motor_hidden_dim, cfg.joint_dim)
@@ -170,6 +183,7 @@ class CorsiMemoryRecallV2Model(nn.Module):
     def reset_parameters(self) -> None:
         nn.init.normal_(self.recall_token, mean=0.0, std=0.02)
         nn.init.normal_(self.memory_slot_position, mean=0.0, std=0.02)
+        nn.init.normal_(self.memory_binding_context, mean=0.0, std=0.02)
 
     def get_recall_inputs(self, batch_size: int, steps: int, *, device: torch.device | None = None) -> Tensor:
         token = self.recall_token
@@ -276,6 +290,12 @@ class CorsiMemoryRecallV2Model(nn.Module):
                 segment_mask,
                 return_traces=return_traces,
             )
+        if self.config.memory_write_mode == "item_context_binding":
+            return self._run_item_context_binding_memory(
+                item_embeddings,
+                segment_mask,
+                return_traces=return_traces,
+            )
         if self.config.memory_write_mode != "lstm":
             raise ValueError(f"unknown memory_write_mode: {self.config.memory_write_mode}")
         batch_size, segments, _ = item_embeddings.shape
@@ -332,6 +352,96 @@ class CorsiMemoryRecallV2Model(nn.Module):
                 self.config.max_sequence_length,
                 self.config.num_blocks,
             )
+            result["memory_identity_logits"] = self.memory_identity_head(memory_states)
+            result["memory_states"] = memory_states
+            result["memory_state_mask"] = segment_mask[:, :segments]
+            result["memory_order_head_weight"] = self.memory_order_head.weight
+            result["memory_identity_head_weight"] = self.memory_identity_head.weight
+        if return_traces:
+            result["traces"] = _stack_trace(trace, dim=1)
+        return result
+
+    def _run_item_context_binding_memory(
+        self,
+        item_embeddings: Tensor,
+        segment_mask: Tensor,
+        *,
+        return_traces: bool = False,
+    ) -> dict[str, Any]:
+        batch_size, segments, _ = item_embeddings.shape
+        if int(segments) > int(self.config.max_sequence_length):
+            raise ValueError(
+                "item_context_binding memory supports at most "
+                f"{self.config.max_sequence_length} segments, got {segments}"
+            )
+        dtype = item_embeddings.dtype
+        device = item_embeddings.device
+        slot_dim = int(self.config.memory_slot_dim)
+        matrix = torch.zeros(batch_size, slot_dim, slot_dim, dtype=dtype, device=device)
+        zero_c = torch.zeros(batch_size, self.config.memory_dim, dtype=dtype, device=device)
+        zero_gate = torch.zeros(batch_size, self.config.memory_dim, dtype=dtype, device=device)
+        trace: dict[str, list[Tensor]] = {
+            "h_t": [],
+            "c_t": [],
+            "input_gate": [],
+            "forget_gate": [],
+            "candidate": [],
+            "output_gate": [],
+        }
+        memory_h: list[Tensor] = []
+        memory_c: list[Tensor] = []
+        for segment_index in range(segments):
+            item = torch.tanh(self.memory_binding_item_projection(item_embeddings[:, segment_index]))
+            context = torch.tanh(
+                self.memory_binding_context[segment_index].to(device=device, dtype=dtype)
+            )
+            write = item.unsqueeze(-1) * context.view(1, 1, slot_dim)
+            mask = segment_mask[:, segment_index].to(dtype=dtype).view(batch_size, 1, 1)
+            matrix = matrix + write * mask
+            h = self.memory_binding_projection(matrix.reshape(batch_size, -1))
+            c = zero_c
+            memory_h.append(h)
+            memory_c.append(c)
+            if return_traces:
+                trace["h_t"].append(h)
+                trace["c_t"].append(c)
+                for key in ("input_gate", "forget_gate", "candidate", "output_gate"):
+                    trace[key].append(zero_gate)
+
+        if memory_h:
+            memory_before_noise = memory_h[-1]
+            memory_states = torch.cat(
+                [torch.stack(memory_h, dim=1), torch.stack(memory_c, dim=1)],
+                dim=-1,
+            )
+        else:
+            memory_before_noise = torch.zeros(batch_size, self.config.memory_dim, dtype=dtype, device=device)
+            memory_states = torch.zeros(batch_size, 0, 2 * self.config.memory_dim, dtype=dtype, device=device)
+        final_memory = memory_before_noise
+        if self.training and self.config.memory_noise_std > 0.0:
+            final_memory = final_memory + torch.randn_like(final_memory) * float(self.config.memory_noise_std)
+
+        result: dict[str, Any] = {
+            "final_memory": final_memory,
+            "memory_before_noise": memory_before_noise,
+            "memory_states": memory_states,
+            "memory_state_mask": segment_mask[:, :segments],
+            "final_memory_order_logits": self.final_memory_order_head(memory_before_noise).reshape(
+                batch_size,
+                self.config.max_sequence_length,
+                self.config.num_blocks,
+            ),
+            "final_memory_length_logits": self.final_memory_length_head(memory_before_noise),
+            "memory_order_logits": self.memory_order_head(memory_states).reshape(
+                batch_size,
+                segments,
+                self.config.max_sequence_length,
+                self.config.num_blocks,
+            ),
+            "memory_identity_logits": self.memory_identity_head(memory_states),
+            "memory_order_head_weight": self.memory_order_head.weight,
+            "memory_identity_head_weight": self.memory_identity_head.weight,
+        }
         if return_traces:
             result["traces"] = _stack_trace(trace, dim=1)
         return result
@@ -398,6 +508,8 @@ class CorsiMemoryRecallV2Model(nn.Module):
         result: dict[str, Any] = {
             "final_memory": final_memory,
             "memory_before_noise": memory_before_noise,
+            "memory_states": memory_states,
+            "memory_state_mask": segment_mask[:, :segments],
             "final_memory_order_logits": self.final_memory_order_head(memory_before_noise).reshape(
                 batch_size,
                 self.config.max_sequence_length,
@@ -410,6 +522,9 @@ class CorsiMemoryRecallV2Model(nn.Module):
                 self.config.max_sequence_length,
                 self.config.num_blocks,
             ),
+            "memory_identity_logits": self.memory_identity_head(memory_states),
+            "memory_order_head_weight": self.memory_order_head.weight,
+            "memory_identity_head_weight": self.memory_identity_head.weight,
         }
         if return_traces:
             result["traces"] = _stack_trace(trace, dim=1)
@@ -420,8 +535,12 @@ class CorsiMemoryRecallV2Model(nn.Module):
         memory: Tensor,
         *,
         max_recall_steps: int | None = None,
+        memory_bank: Tensor | None = None,
+        memory_bank_mask: Tensor | None = None,
         return_traces: bool = False,
     ) -> dict[str, Any]:
+        if self.config.recall_readout_mode not in {"final", "memory_attention"}:
+            raise ValueError(f"unknown recall_readout_mode: {self.config.recall_readout_mode}")
         steps = int(max_recall_steps or self.config.max_recall_steps)
         batch_size = int(memory.shape[0])
         h = torch.tanh(self.memory_to_recall_h(memory))
@@ -439,8 +558,11 @@ class CorsiMemoryRecallV2Model(nn.Module):
         }
         for step in range(steps):
             h, c, gates = self.recall_lstm(recall_inputs[:, step], (h, c))
-            logits.append(self.block_head(h))
-            coord.append(self.coord_head(h))
+            read_h = h
+            if self.config.recall_readout_mode == "memory_attention" and memory_bank is not None:
+                read_h = self._attend_memory_trajectory(h, memory_bank, memory_bank_mask)
+            logits.append(self.block_head(read_h))
+            coord.append(self.coord_head(read_h))
             if return_traces:
                 trace["h_t"].append(h)
                 trace["c_t"].append(c)
@@ -455,6 +577,24 @@ class CorsiMemoryRecallV2Model(nn.Module):
         if return_traces:
             result["traces"] = _stack_trace(trace, dim=1)
         return result
+
+    def _attend_memory_trajectory(
+        self,
+        query_state: Tensor,
+        memory_bank: Tensor,
+        memory_bank_mask: Tensor | None,
+    ) -> Tensor:
+        keys = self.memory_attention_key(memory_bank)
+        values = self.memory_attention_value(memory_bank)
+        query = self.memory_attention_query(query_state).unsqueeze(1)
+        scale = float(keys.shape[-1]) ** -0.5
+        scores = (keys * query).sum(dim=-1) * scale
+        if memory_bank_mask is not None:
+            mask = memory_bank_mask.to(device=scores.device, dtype=torch.bool)
+            scores = scores.masked_fill(~mask, torch.finfo(scores.dtype).min)
+        weights = torch.softmax(scores, dim=-1)
+        context = torch.bmm(weights.unsqueeze(1), values).squeeze(1)
+        return torch.tanh(self.recall_context_projection(torch.cat([query_state, context], dim=-1)))
 
     def forward(
         self,
@@ -479,6 +619,8 @@ class CorsiMemoryRecallV2Model(nn.Module):
         recall = self.recall_from_memory(
             memory["final_memory"],
             max_recall_steps=max_recall_steps,
+            memory_bank=memory.get("memory_states"),
+            memory_bank_mask=memory.get("memory_state_mask"),
             return_traces=return_traces,
         )
         result: dict[str, Any] = {
@@ -492,7 +634,12 @@ class CorsiMemoryRecallV2Model(nn.Module):
             "item_motor": presentation["item_motor"],
             "final_memory": memory["final_memory"],
             "memory_before_noise": memory["memory_before_noise"],
+            "memory_states": memory.get("memory_states"),
+            "memory_state_mask": memory.get("memory_state_mask"),
             "memory_order_logits": memory["memory_order_logits"],
+            "memory_identity_logits": memory.get("memory_identity_logits"),
+            "memory_order_head_weight": memory.get("memory_order_head_weight"),
+            "memory_identity_head_weight": memory.get("memory_identity_head_weight"),
             "final_memory_order_logits": memory["final_memory_order_logits"],
             "final_memory_length_logits": memory["final_memory_length_logits"],
             "recall_inputs": recall["recall_inputs"],
@@ -529,16 +676,28 @@ class CorsiMemoryRecallV2Model(nn.Module):
             return_traces=return_traces,
         )
         recall_memory = memory["final_memory"]
+        recall_memory_bank = memory.get("memory_states")
+        recall_memory_bank_mask = memory.get("memory_state_mask")
         if intervention == "memory_zero":
             recall_memory = torch.zeros_like(recall_memory)
+            if torch.is_tensor(recall_memory_bank):
+                recall_memory_bank = torch.zeros_like(recall_memory_bank)
         elif intervention == "memory_shuffle":
             if recall_memory.shape[0] > 1:
                 recall_memory = torch.roll(recall_memory, shifts=1, dims=0)
+                if torch.is_tensor(recall_memory_bank):
+                    recall_memory_bank = torch.roll(recall_memory_bank, shifts=1, dims=0)
+                if torch.is_tensor(recall_memory_bank_mask):
+                    recall_memory_bank_mask = torch.roll(recall_memory_bank_mask, shifts=1, dims=0)
             else:
                 recall_memory = torch.zeros_like(recall_memory)
+                if torch.is_tensor(recall_memory_bank):
+                    recall_memory_bank = torch.zeros_like(recall_memory_bank)
         recall = self.recall_from_memory(
             recall_memory,
             max_recall_steps=max_recall_steps,
+            memory_bank=recall_memory_bank,
+            memory_bank_mask=recall_memory_bank_mask,
             return_traces=return_traces,
         )
         result: dict[str, Any] = {
@@ -552,7 +711,12 @@ class CorsiMemoryRecallV2Model(nn.Module):
             "item_motor": presentation["item_motor"],
             "final_memory": memory["final_memory"],
             "memory_before_noise": memory["memory_before_noise"],
+            "memory_states": memory.get("memory_states"),
+            "memory_state_mask": memory.get("memory_state_mask"),
             "memory_order_logits": memory["memory_order_logits"],
+            "memory_identity_logits": memory.get("memory_identity_logits"),
+            "memory_order_head_weight": memory.get("memory_order_head_weight"),
+            "memory_identity_head_weight": memory.get("memory_identity_head_weight"),
             "final_memory_order_logits": memory["final_memory_order_logits"],
             "final_memory_length_logits": memory["final_memory_length_logits"],
             "recall_memory": recall_memory,

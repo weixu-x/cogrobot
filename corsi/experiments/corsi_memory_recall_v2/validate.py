@@ -51,6 +51,13 @@ def _finite(name: str, values: np.ndarray) -> None:
 def _expected_length_counts(config: Mapping[str, Any]) -> dict[str, int] | None:
     if "expected_length_counts" in config:
         return {str(key): int(value) for key, value in config["expected_length_counts"].items()}
+    split_counts = _expected_split_length_counts(config)
+    if split_counts is not None:
+        totals: Counter[str] = Counter()
+        for counts in split_counts.values():
+            for length, count in counts.items():
+                totals[str(length)] += int(count)
+        return {str(length): int(totals[str(length)]) for length in sorted(totals, key=int)}
     if {"length_min", "length_max", "num_trials_per_length"} <= set(config):
         per_length = int(config["num_trials_per_length"])
         return {
@@ -61,6 +68,16 @@ def _expected_length_counts(config: Mapping[str, Any]) -> dict[str, int] | None:
 
 
 def _expected_split_length_counts(config: Mapping[str, Any]) -> dict[str, dict[str, int]] | None:
+    if "expected_split_length_counts" in config:
+        return {
+            str(split): {str(length): int(count) for length, count in dict(counts).items()}
+            for split, counts in dict(config["expected_split_length_counts"]).items()
+        }
+    if "split_length_counts" in config:
+        return {
+            str(split): {str(length): int(count) for length, count in dict(counts).items()}
+            for split, counts in dict(config["split_length_counts"]).items()
+        }
     required_keys = {
         "length_min",
         "length_max",
@@ -100,6 +117,7 @@ def validate_raw_dataset(config: Mapping[str, Any]) -> dict[str, Any]:
         )
 
     length_counter: Counter[int] = Counter()
+    split_length_counter: dict[str, Counter[int]] = {"train": Counter(), "val": Counter(), "test": Counter()}
     for sample in samples:
         seq_id = str(sample["seq_id"])
         length = int(sample["length"])
@@ -175,6 +193,11 @@ def validate_raw_dataset(config: Mapping[str, Any]) -> dict[str, Any]:
                     f"{seq_id}: block array disagrees with segment {rank}",
                 )
         length_counter[length] += 1
+        split_name = sample.get("split")
+        if split_name is not None:
+            split_name = str(split_name)
+            _require(split_name in split_length_counter, f"{seq_id}: unexpected split {split_name!r}")
+            split_length_counter[split_name][length] += 1
 
     computed_length_counts = {str(k): int(v) for k, v in sorted(length_counter.items())}
     if expected is not None:
@@ -186,14 +209,32 @@ def validate_raw_dataset(config: Mapping[str, Any]) -> dict[str, Any]:
             len(samples) == sum(expected.values()),
             f"raw sample count {len(samples)} != expected {sum(expected.values())}",
         )
+    expected_split_counts = (
+        _expected_split_length_counts(config)
+        if "expected_split_length_counts" in config or "split_length_counts" in config
+        else None
+    )
+    computed_split_length_counts = {
+        split: {str(length): int(count) for length, count in sorted(counter.items())}
+        for split, counter in split_length_counter.items()
+        if counter
+    }
+    if expected_split_counts is not None:
+        _require(
+            computed_split_length_counts == expected_split_counts,
+            f"raw split_length_counts {computed_split_length_counts} != expected {expected_split_counts}",
+        )
 
-    return {
+    result = {
         "check": "raw",
         "manifest_path": str(manifest_path),
         "episode_count": len(samples),
         "length_counts": computed_length_counts,
         "status": "ok",
     }
+    if computed_split_length_counts:
+        result["split_length_counts"] = computed_split_length_counts
+    return result
 
 
 def _canonical_manifest_path(config: Mapping[str, Any]) -> Path:

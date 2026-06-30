@@ -1,0 +1,6260 @@
+{
+  "canonical_fingerprint": "782962d47e55a1e4631919f4042bc1eb31ff0b66c7c27adff27aaf7b994b4485",
+  "checkpoint_order": [
+    "epoch080_best_full",
+    "epoch120_best_full",
+    "epoch139_best_full",
+    "epoch160_latest",
+    "epoch200_latest",
+    "epoch122_best_token",
+    "epoch093_best_val_loss"
+  ],
+  "checkpoints": {
+    "epoch080_best_full": {
+      "checkpoint": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629/milestones/epoch_080/best_full_sequence.pt",
+      "final_state_probes": {
+        "final_c": {
+          "length_train_loss": 0.015207434073090553,
+          "order_train_loss": 0.007498761173337698,
+          "test": {
+            "length": {
+              "accuracy": 0.550000011920929,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5454545617103577,
+              "known_length_exact_sequence_accuracy": 0.3,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.800000011920929,
+                "2": 0.4285714328289032,
+                "3": 0.3333333432674408,
+                "4": 0.36000001430511475,
+                "5": 0.15000000596046448,
+                "6": 0.20000000298023224,
+                "7": 0.6000000238418579,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.675000011920929,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5363636612892151,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.4000000059604645,
+                "3": 0.1666666716337204,
+                "4": 0.23999999463558197,
+                "5": 0.30000001192092896,
+                "6": 0.46666666865348816,
+                "7": 0.20000000298023224,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_h": {
+          "length_train_loss": 0.019027553498744965,
+          "order_train_loss": 0.013342510908842087,
+          "test": {
+            "length": {
+              "accuracy": 0.550000011920929,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5227272510528564,
+              "known_length_exact_sequence_accuracy": 0.25,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.7749999761581421,
+                "2": 0.37142857909202576,
+                "3": 0.23333333432674408,
+                "4": 0.4000000059604645,
+                "5": 0.10000000149011612,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.7749999761581421,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.4636363685131073,
+              "known_length_exact_sequence_accuracy": 0.175,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 0.7749999761581421,
+                "2": 0.20000000298023224,
+                "3": 0.06666667014360428,
+                "4": 0.23999999463558197,
+                "5": 0.25,
+                "6": 0.4000000059604645,
+                "7": 0.20000000298023224,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_hc": {
+          "length_train_loss": 0.006322617642581463,
+          "order_train_loss": 0.0031135978642851114,
+          "test": {
+            "length": {
+              "accuracy": 0.6000000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5454545617103577,
+              "known_length_exact_sequence_accuracy": 0.275,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.4000000059604645,
+                "3": 0.3333333432674408,
+                "4": 0.4000000059604645,
+                "5": 0.10000000149011612,
+                "6": 0.2666666805744171,
+                "7": 0.5,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.7250000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.4954545497894287,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.800000011920929,
+                "2": 0.3142857253551483,
+                "3": 0.20000000298023224,
+                "4": 0.20000000298023224,
+                "5": 0.25,
+                "6": 0.4000000059604645,
+                "7": 0.10000000149011612,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "flattened_state_probes": {
+        "flat_c": {
+          "length_train_loss": 9.802449494600296e-05,
+          "order_train_loss": 9.985857468564063e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7272727489471436,
+              "known_length_exact_sequence_accuracy": 0.45,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.7142857313156128,
+                "3": 0.7333333492279053,
+                "4": 0.7200000286102295,
+                "5": 0.4000000059604645,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7136363387107849,
+              "known_length_exact_sequence_accuracy": 0.45,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.7142857313156128,
+                "3": 0.6000000238418579,
+                "4": 0.7200000286102295,
+                "5": 0.5,
+                "6": 0.4000000059604645,
+                "7": 0.10000000149011612,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_h": {
+          "length_train_loss": 9.964264609152451e-05,
+          "order_train_loss": 9.983291965909302e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7909091114997864,
+              "known_length_exact_sequence_accuracy": 0.6,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.8857142925262451,
+                "3": 0.8333333134651184,
+                "4": 0.800000011920929,
+                "5": 0.550000011920929,
+                "6": 0.2666666805744171,
+                "7": 0.5,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7318181991577148,
+              "known_length_exact_sequence_accuracy": 0.425,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.9750000238418579,
+                "2": 0.800000011920929,
+                "3": 0.6000000238418579,
+                "4": 0.7599999904632568,
+                "5": 0.4000000059604645,
+                "6": 0.3333333432674408,
+                "7": 0.30000001192092896,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_hc": {
+          "length_train_loss": 9.848010813584551e-05,
+          "order_train_loss": 9.763196430867538e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7454545497894287,
+              "known_length_exact_sequence_accuracy": 0.45,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.949999988079071,
+                "2": 0.7428571581840515,
+                "3": 0.7333333492279053,
+                "4": 0.7200000286102295,
+                "5": 0.44999998807907104,
+                "6": 0.4000000059604645,
+                "7": 0.5,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7272727489471436,
+              "known_length_exact_sequence_accuracy": 0.4,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.925000011920929,
+                "2": 0.800000011920929,
+                "3": 0.5333333611488342,
+                "4": 0.800000011920929,
+                "5": 0.550000011920929,
+                "6": 0.5333333611488342,
+                "7": 0.10000000149011612,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "item_embedding_probe": {
+        "test": {
+          "accuracy": 1.0,
+          "count": 220
+        },
+        "train": {
+          "accuracy": 1.0,
+          "count": 1760
+        },
+        "train_loss": 9.996574954129755e-05,
+        "val": {
+          "accuracy": 1.0,
+          "count": 220
+        }
+      },
+      "memory_trajectory_probe": {
+        "current_item_train_loss": 0.000822475936729461,
+        "past_set_train_loss": 0.0007180877146311104,
+        "prefix_order_train_loss": 0.007049924694001675,
+        "state_definition": "[h_t;c_t]",
+        "test": {
+          "current_item": {
+            "current_item_accuracy": 0.9954545497894287,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.9,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8285714285714286,
+              "4": 0.26666666666666666,
+              "5": 0.04,
+              "6": 0.1,
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9428571462631226,
+              "4": 0.7666666666666667,
+              "5": 0.6720000141859055,
+              "6": 0.5833333365619182,
+              "7": 0.5523809671401978,
+              "8": 0.4625,
+              "9": 0.33333333730697634
+            },
+            "prefix_order_exact_accuracy": 0.5454545454545454,
+            "prefix_order_token_accuracy": 0.7012194991111755,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        },
+        "train": {
+          "current_item": {
+            "current_item_accuracy": 1.0,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "prefix_order_exact_accuracy": 1.0,
+            "prefix_order_token_accuracy": 1.0,
+            "prefix_token_count": 6560,
+            "state_count": 1760
+          }
+        },
+        "val": {
+          "current_item": {
+            "current_item_accuracy": 0.9818181991577148,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.8666666666666667,
+              "8": 0.9,
+              "9": 0.8
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 0.9863636363636363,
+            "past_set_mean_recall": 0.9982142857142857,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9333333333333333,
+              "8": 0.8,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9904761904761905,
+              "8": 0.975,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8571428571428571,
+              "4": 0.23333333333333334,
+              "5": 0.12,
+              "6": 0.0,
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9428571454116277,
+              "4": 0.7333333333333333,
+              "5": 0.6480000138282775,
+              "6": 0.6000000089406967,
+              "7": 0.5142857273419698,
+              "8": 0.425,
+              "9": 0.4666666820645332
+            },
+            "prefix_order_exact_accuracy": 0.5454545454545454,
+            "prefix_order_token_accuracy": 0.6939024329185486,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        }
+      },
+      "requested": "epoch 80 best-full",
+      "selection_key": "full_sequence",
+      "selection_score": [
+        0.275,
+        0.6423076923076924,
+        0.925,
+        -1.417369584242503
+      ],
+      "source_epoch": 79,
+      "source_stage": 2
+    },
+    "epoch093_best_val_loss": {
+      "checkpoint": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629/best_val_loss.pt",
+      "final_state_probes": {
+        "final_c": {
+          "length_train_loss": 0.012750143185257912,
+          "order_train_loss": 0.005023626144975424,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5590909123420715,
+              "known_length_exact_sequence_accuracy": 0.325,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.5142857432365417,
+                "3": 0.36666667461395264,
+                "4": 0.3199999928474426,
+                "5": 0.15000000596046448,
+                "6": 0.13333334028720856,
+                "7": 0.4000000059604645,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.7749999761581421,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5409091114997864,
+              "known_length_exact_sequence_accuracy": 0.175,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.7749999761581421,
+                "2": 0.3142857253551483,
+                "3": 0.30000001192092896,
+                "4": 0.4399999976158142,
+                "5": 0.25,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_h": {
+          "length_train_loss": 0.016827262938022614,
+          "order_train_loss": 0.007991150952875614,
+          "test": {
+            "length": {
+              "accuracy": 0.6499999761581421,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5363636612892151,
+              "known_length_exact_sequence_accuracy": 0.225,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.4285714328289032,
+                "3": 0.30000001192092896,
+                "4": 0.23999999463558197,
+                "5": 0.15000000596046448,
+                "6": 0.3333333432674408,
+                "7": 0.30000001192092896,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.699999988079071,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.47727271914482117,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.7749999761581421,
+                "2": 0.2571428716182709,
+                "3": 0.1666666716337204,
+                "4": 0.23999999463558197,
+                "5": 0.20000000298023224,
+                "6": 0.2666666805744171,
+                "7": 0.30000001192092896,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_hc": {
+          "length_train_loss": 0.005551025737076998,
+          "order_train_loss": 0.0022504469379782677,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5636363625526428,
+              "known_length_exact_sequence_accuracy": 0.3,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.48571428656578064,
+                "3": 0.4000000059604645,
+                "4": 0.3199999928474426,
+                "5": 0.15000000596046448,
+                "6": 0.13333334028720856,
+                "7": 0.4000000059604645,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.7749999761581421,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5227272510528564,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.800000011920929,
+                "2": 0.3142857253551483,
+                "3": 0.2666666805744171,
+                "4": 0.3199999928474426,
+                "5": 0.20000000298023224,
+                "6": 0.4000000059604645,
+                "7": 0.30000001192092896,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "flattened_state_probes": {
+        "flat_c": {
+          "length_train_loss": 9.857796976575628e-05,
+          "order_train_loss": 9.945787314791232e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7181817889213562,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.7428571581840515,
+                "3": 0.6666666865348816,
+                "4": 0.6000000238418579,
+                "5": 0.30000001192092896,
+                "6": 0.46666666865348816,
+                "7": 0.6000000238418579,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7272727489471436,
+              "known_length_exact_sequence_accuracy": 0.475,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.9750000238418579,
+                "2": 0.800000011920929,
+                "3": 0.5666666626930237,
+                "4": 0.6399999856948853,
+                "5": 0.6000000238418579,
+                "6": 0.4000000059604645,
+                "7": 0.30000001192092896,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_h": {
+          "length_train_loss": 9.97307215584442e-05,
+          "order_train_loss": 9.993174899136648e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7772727012634277,
+              "known_length_exact_sequence_accuracy": 0.575,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.8857142925262451,
+                "3": 0.8666666746139526,
+                "4": 0.800000011920929,
+                "5": 0.4000000059604645,
+                "6": 0.3333333432674408,
+                "7": 0.30000001192092896,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7636363506317139,
+              "known_length_exact_sequence_accuracy": 0.575,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.9750000238418579,
+                "2": 0.800000011920929,
+                "3": 0.7333333492279053,
+                "4": 0.7599999904632568,
+                "5": 0.44999998807907104,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_hc": {
+          "length_train_loss": 8.777934999670833e-05,
+          "order_train_loss": 9.260767546948045e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7454545497894287,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.949999988079071,
+                "2": 0.800000011920929,
+                "3": 0.7666666507720947,
+                "4": 0.6399999856948853,
+                "5": 0.4000000059604645,
+                "6": 0.4000000059604645,
+                "7": 0.5,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7090908885002136,
+              "known_length_exact_sequence_accuracy": 0.475,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.8500000238418579,
+                "2": 0.8285714387893677,
+                "3": 0.5666666626930237,
+                "4": 0.7599999904632568,
+                "5": 0.44999998807907104,
+                "6": 0.5333333611488342,
+                "7": 0.10000000149011612,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "item_embedding_probe": {
+        "test": {
+          "accuracy": 1.0,
+          "count": 220
+        },
+        "train": {
+          "accuracy": 1.0,
+          "count": 1760
+        },
+        "train_loss": 9.99253970803693e-05,
+        "val": {
+          "accuracy": 1.0,
+          "count": 220
+        }
+      },
+      "memory_trajectory_probe": {
+        "current_item_train_loss": 0.0008275674772448838,
+        "past_set_train_loss": 0.0005574419046752155,
+        "prefix_order_train_loss": 0.004478745628148317,
+        "state_definition": "[h_t;c_t]",
+        "test": {
+          "current_item": {
+            "current_item_accuracy": 0.9954545497894287,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 0.8
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8285714285714286,
+              "4": 0.4666666666666667,
+              "5": 0.08,
+              "6": 0.1,
+              "7": 0.06666666666666667,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9428571462631226,
+              "4": 0.8166666666666667,
+              "5": 0.7120000123977661,
+              "6": 0.6166666753590107,
+              "7": 0.5523809671401978,
+              "8": 0.5125,
+              "9": 0.42222222685813904
+            },
+            "prefix_order_exact_accuracy": 0.5818181818181818,
+            "prefix_order_token_accuracy": 0.7292683124542236,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        },
+        "train": {
+          "current_item": {
+            "current_item_accuracy": 1.0,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "prefix_order_exact_accuracy": 1.0,
+            "prefix_order_token_accuracy": 1.0,
+            "prefix_token_count": 6560,
+            "state_count": 1760
+          }
+        },
+        "val": {
+          "current_item": {
+            "current_item_accuracy": 0.9863636493682861,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.8666666666666667,
+              "8": 1.0,
+              "9": 0.8
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 0.9954545454545455,
+            "past_set_mean_recall": 0.9993506493506493,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9333333333333333,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9904761904761905,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8285714285714286,
+              "4": 0.26666666666666666,
+              "5": 0.16,
+              "6": 0.0,
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9333333364554814,
+              "4": 0.725,
+              "5": 0.6800000143051147,
+              "6": 0.5833333358168602,
+              "7": 0.5142857293287914,
+              "8": 0.4375,
+              "9": 0.44444445669651034
+            },
+            "prefix_order_exact_accuracy": 0.55,
+            "prefix_order_token_accuracy": 0.6939024329185486,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        }
+      },
+      "requested": "best-val-loss epoch 93",
+      "selection_key": "val_loss",
+      "selection_score": [
+        -1.3810325960318248,
+        0.25,
+        0.6153846153846154,
+        0.875
+      ],
+      "source_epoch": 93,
+      "source_stage": 2
+    },
+    "epoch120_best_full": {
+      "checkpoint": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629/milestones/epoch_120/best_full_sequence.pt",
+      "final_state_probes": {
+        "final_c": {
+          "length_train_loss": 0.009178908541798592,
+          "order_train_loss": 0.0029275137931108475,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5454545617103577,
+              "known_length_exact_sequence_accuracy": 0.3,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.8500000238418579,
+                "2": 0.5428571701049805,
+                "3": 0.3333333432674408,
+                "4": 0.3199999928474426,
+                "5": 0.15000000596046448,
+                "6": 0.06666667014360428,
+                "7": 0.30000001192092896,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.7749999761581421,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.581818163394928,
+              "known_length_exact_sequence_accuracy": 0.175,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.5142857432365417,
+                "3": 0.23333333432674408,
+                "4": 0.5199999809265137,
+                "5": 0.4000000059604645,
+                "6": 0.3333333432674408,
+                "7": 0.20000000298023224,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_h": {
+          "length_train_loss": 0.014397529885172844,
+          "order_train_loss": 0.004345889203250408,
+          "test": {
+            "length": {
+              "accuracy": 0.6499999761581421,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5318182110786438,
+              "known_length_exact_sequence_accuracy": 0.225,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.4000000059604645,
+                "3": 0.3333333432674408,
+                "4": 0.23999999463558197,
+                "5": 0.15000000596046448,
+                "6": 0.20000000298023224,
+                "7": 0.4000000059604645,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.6000000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5045454502105713,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.7250000238418579,
+                "2": 0.2857142984867096,
+                "3": 0.20000000298023224,
+                "4": 0.4000000059604645,
+                "5": 0.25,
+                "6": 0.4000000059604645,
+                "7": 0.10000000149011612,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_hc": {
+          "length_train_loss": 0.004676804877817631,
+          "order_train_loss": 0.0013081275392323732,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5681818127632141,
+              "known_length_exact_sequence_accuracy": 0.3,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.8999999761581421,
+                "2": 0.5142857432365417,
+                "3": 0.36666667461395264,
+                "4": 0.3199999928474426,
+                "5": 0.15000000596046448,
+                "6": 0.06666667014360428,
+                "7": 0.4000000059604645,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.75,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.550000011920929,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.4285714328289032,
+                "3": 0.23333333432674408,
+                "4": 0.4399999976158142,
+                "5": 0.25,
+                "6": 0.3333333432674408,
+                "7": 0.20000000298023224,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "flattened_state_probes": {
+        "flat_c": {
+          "length_train_loss": 9.885750478133559e-05,
+          "order_train_loss": 9.989013778977096e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7181817889213562,
+              "known_length_exact_sequence_accuracy": 0.525,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.8285714387893677,
+                "3": 0.699999988079071,
+                "4": 0.5600000023841858,
+                "5": 0.3499999940395355,
+                "6": 0.4000000059604645,
+                "7": 0.30000001192092896,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6954545378684998,
+              "known_length_exact_sequence_accuracy": 0.45,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.925000011920929,
+                "1": 0.9750000238418579,
+                "2": 0.6857143044471741,
+                "3": 0.5,
+                "4": 0.6800000071525574,
+                "5": 0.6000000238418579,
+                "6": 0.4000000059604645,
+                "7": 0.20000000298023224,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_h": {
+          "length_train_loss": 9.99376061372459e-05,
+          "order_train_loss": 9.996929293265566e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7681818008422852,
+              "known_length_exact_sequence_accuracy": 0.525,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.949999988079071,
+                "2": 0.8857142925262451,
+                "3": 0.800000011920929,
+                "4": 0.7599999904632568,
+                "5": 0.4000000059604645,
+                "6": 0.2666666805744171,
+                "7": 0.4000000059604645,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7545454502105713,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 0.9750000238418579,
+                "2": 0.800000011920929,
+                "3": 0.6666666865348816,
+                "4": 0.800000011920929,
+                "5": 0.5,
+                "6": 0.3333333432674408,
+                "7": 0.30000001192092896,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_hc": {
+          "length_train_loss": 9.794188372325152e-05,
+          "order_train_loss": 9.792724449653178e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7227272987365723,
+              "known_length_exact_sequence_accuracy": 0.475,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 0.925000011920929,
+                "2": 0.800000011920929,
+                "3": 0.699999988079071,
+                "4": 0.6399999856948853,
+                "5": 0.44999998807907104,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6909090876579285,
+              "known_length_exact_sequence_accuracy": 0.325,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.8999999761581421,
+                "2": 0.7142857313156128,
+                "3": 0.5,
+                "4": 0.6399999856948853,
+                "5": 0.6000000238418579,
+                "6": 0.5333333611488342,
+                "7": 0.10000000149011612,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "item_embedding_probe": {
+        "test": {
+          "accuracy": 1.0,
+          "count": 220
+        },
+        "train": {
+          "accuracy": 1.0,
+          "count": 1760
+        },
+        "train_loss": 9.923490870278329e-05,
+        "val": {
+          "accuracy": 1.0,
+          "count": 220
+        }
+      },
+      "memory_trajectory_probe": {
+        "current_item_train_loss": 0.0007967695128172636,
+        "past_set_train_loss": 0.0005068627651780844,
+        "prefix_order_train_loss": 0.0023271432146430016,
+        "state_definition": "[h_t;c_t]",
+        "test": {
+          "current_item": {
+            "current_item_accuracy": 0.9818181991577148,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.7,
+              "9": 0.8
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8571428571428571,
+              "4": 0.43333333333333335,
+              "5": 0.08,
+              "6": 0.05,
+              "7": 0.06666666666666667,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9523809552192688,
+              "4": 0.8166666666666667,
+              "5": 0.712000013589859,
+              "6": 0.6166666731238365,
+              "7": 0.5714285830656688,
+              "8": 0.5,
+              "9": 0.4222222328186035
+            },
+            "prefix_order_exact_accuracy": 0.5772727272727273,
+            "prefix_order_token_accuracy": 0.7317073345184326,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        },
+        "train": {
+          "current_item": {
+            "current_item_accuracy": 1.0,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "prefix_order_exact_accuracy": 1.0,
+            "prefix_order_token_accuracy": 1.0,
+            "prefix_token_count": 6560,
+            "state_count": 1760
+          }
+        },
+        "val": {
+          "current_item": {
+            "current_item_accuracy": 0.9863636493682861,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 0.95,
+              "7": 0.9333333333333333,
+              "8": 0.9,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8285714285714286,
+              "4": 0.36666666666666664,
+              "5": 0.24,
+              "6": 0.0,
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9428571462631226,
+              "4": 0.7916666666666666,
+              "5": 0.7280000150203705,
+              "6": 0.6083333402872085,
+              "7": 0.5523809671401978,
+              "8": 0.4375,
+              "9": 0.44444445669651034
+            },
+            "prefix_order_exact_accuracy": 0.5727272727272728,
+            "prefix_order_token_accuracy": 0.7207317352294922,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        }
+      },
+      "requested": "epoch 120 best-full",
+      "selection_key": "full_sequence",
+      "selection_score": [
+        0.275,
+        0.6576923076923077,
+        0.95,
+        -1.4006342391173046
+      ],
+      "source_epoch": 115,
+      "source_stage": 2
+    },
+    "epoch122_best_token": {
+      "checkpoint": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629/best_token.pt",
+      "final_state_probes": {
+        "final_c": {
+          "length_train_loss": 0.008777910843491554,
+          "order_train_loss": 0.0025733408983796835,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5454545617103577,
+              "known_length_exact_sequence_accuracy": 0.3,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.8500000238418579,
+                "2": 0.5428571701049805,
+                "3": 0.3333333432674408,
+                "4": 0.36000001430511475,
+                "5": 0.15000000596046448,
+                "6": 0.06666667014360428,
+                "7": 0.30000001192092896,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.7749999761581421,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5681818127632141,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.5142857432365417,
+                "3": 0.23333333432674408,
+                "4": 0.4399999976158142,
+                "5": 0.3499999940395355,
+                "6": 0.3333333432674408,
+                "7": 0.20000000298023224,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_h": {
+          "length_train_loss": 0.013979949057102203,
+          "order_train_loss": 0.0038226500619202852,
+          "test": {
+            "length": {
+              "accuracy": 0.675000011920929,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5409091114997864,
+              "known_length_exact_sequence_accuracy": 0.25,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.800000011920929,
+                "2": 0.5142857432365417,
+                "3": 0.30000001192092896,
+                "4": 0.23999999463558197,
+                "5": 0.15000000596046448,
+                "6": 0.20000000298023224,
+                "7": 0.4000000059604645,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5090909004211426,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.7250000238418579,
+                "2": 0.3142857253551483,
+                "3": 0.20000000298023224,
+                "4": 0.4000000059604645,
+                "5": 0.25,
+                "6": 0.4000000059604645,
+                "7": 0.10000000149011612,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_hc": {
+          "length_train_loss": 0.004399486351758242,
+          "order_train_loss": 0.0011233879486098886,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5545454621315002,
+              "known_length_exact_sequence_accuracy": 0.325,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.5714285969734192,
+                "3": 0.30000001192092896,
+                "4": 0.2800000011920929,
+                "5": 0.15000000596046448,
+                "6": 0.13333334028720856,
+                "7": 0.30000001192092896,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.75,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5545454621315002,
+              "known_length_exact_sequence_accuracy": 0.225,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.4571428596973419,
+                "3": 0.23333333432674408,
+                "4": 0.4000000059604645,
+                "5": 0.30000001192092896,
+                "6": 0.3333333432674408,
+                "7": 0.20000000298023224,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "flattened_state_probes": {
+        "flat_c": {
+          "length_train_loss": 9.989833051804453e-05,
+          "order_train_loss": 9.787192539079115e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7363636493682861,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.800000011920929,
+                "3": 0.6333333253860474,
+                "4": 0.6399999856948853,
+                "5": 0.44999998807907104,
+                "6": 0.46666666865348816,
+                "7": 0.5,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6954545378684998,
+              "known_length_exact_sequence_accuracy": 0.375,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.9750000238418579,
+                "2": 0.7142857313156128,
+                "3": 0.5,
+                "4": 0.6399999856948853,
+                "5": 0.6000000238418579,
+                "6": 0.4000000059604645,
+                "7": 0.10000000149011612,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_h": {
+          "length_train_loss": 9.955868881661445e-05,
+          "order_train_loss": 9.98490650090389e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7636363506317139,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.949999988079071,
+                "2": 0.9428571462631226,
+                "3": 0.7666666507720947,
+                "4": 0.7599999904632568,
+                "5": 0.30000001192092896,
+                "6": 0.2666666805744171,
+                "7": 0.4000000059604645,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7454545497894287,
+              "known_length_exact_sequence_accuracy": 0.475,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.9750000238418579,
+                "2": 0.8285714387893677,
+                "3": 0.6000000238418579,
+                "4": 0.7599999904632568,
+                "5": 0.5,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_hc": {
+          "length_train_loss": 9.87297244137153e-05,
+          "order_train_loss": 9.551022230880335e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7045454382896423,
+              "known_length_exact_sequence_accuracy": 0.4,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 0.949999988079071,
+                "2": 0.6285714507102966,
+                "3": 0.7666666507720947,
+                "4": 0.6399999856948853,
+                "5": 0.3499999940395355,
+                "6": 0.4000000059604645,
+                "7": 0.4000000059604645,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6954545378684998,
+              "known_length_exact_sequence_accuracy": 0.35,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.925000011920929,
+                "2": 0.7428571581840515,
+                "3": 0.5,
+                "4": 0.6800000071525574,
+                "5": 0.550000011920929,
+                "6": 0.46666666865348816,
+                "7": 0.10000000149011612,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "item_embedding_probe": {
+        "test": {
+          "accuracy": 1.0,
+          "count": 220
+        },
+        "train": {
+          "accuracy": 1.0,
+          "count": 1760
+        },
+        "train_loss": 9.92080895230174e-05,
+        "val": {
+          "accuracy": 1.0,
+          "count": 220
+        }
+      },
+      "memory_trajectory_probe": {
+        "current_item_train_loss": 0.0008272838895209134,
+        "past_set_train_loss": 0.00048431914183311164,
+        "prefix_order_train_loss": 0.0018723334651440382,
+        "state_definition": "[h_t;c_t]",
+        "test": {
+          "current_item": {
+            "current_item_accuracy": 0.9863636493682861,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.7,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8285714285714286,
+              "4": 0.5,
+              "5": 0.08,
+              "6": 0.05,
+              "7": 0.06666666666666667,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9428571462631226,
+              "4": 0.8333333333333334,
+              "5": 0.7200000137090683,
+              "6": 0.6166666723787785,
+              "7": 0.5714285830656688,
+              "8": 0.4875,
+              "9": 0.422222238779068
+            },
+            "prefix_order_exact_accuracy": 0.5818181818181818,
+            "prefix_order_token_accuracy": 0.7329268455505371,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        },
+        "train": {
+          "current_item": {
+            "current_item_accuracy": 1.0,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "prefix_order_exact_accuracy": 1.0,
+            "prefix_order_token_accuracy": 1.0,
+            "prefix_token_count": 6560,
+            "state_count": 1760
+          }
+        },
+        "val": {
+          "current_item": {
+            "current_item_accuracy": 0.9863636493682861,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9333333333333333,
+              "8": 0.8,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8285714285714286,
+              "4": 0.3333333333333333,
+              "5": 0.2,
+              "6": 0.0,
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9428571462631226,
+              "4": 0.7833333333333333,
+              "5": 0.7280000162124634,
+              "6": 0.6250000044703483,
+              "7": 0.5523809651533763,
+              "8": 0.4625,
+              "9": 0.44444445669651034
+            },
+            "prefix_order_exact_accuracy": 0.5636363636363636,
+            "prefix_order_token_accuracy": 0.7243902683258057,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        }
+      },
+      "requested": "best-token epoch 122",
+      "selection_key": "token",
+      "selection_score": [
+        0.6615384615384615,
+        0.275,
+        0.875,
+        -1.4363361994425456
+      ],
+      "source_epoch": 122,
+      "source_stage": 2
+    },
+    "epoch139_best_full": {
+      "checkpoint": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629/milestones/epoch_160/best_full_sequence.pt",
+      "final_state_probes": {
+        "final_c": {
+          "length_train_loss": 0.008760509081184864,
+          "order_train_loss": 0.0020623456221073866,
+          "test": {
+            "length": {
+              "accuracy": 0.7250000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5727272629737854,
+              "known_length_exact_sequence_accuracy": 0.3,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.8999999761581421,
+                "2": 0.6857143044471741,
+                "3": 0.30000001192092896,
+                "4": 0.36000001430511475,
+                "5": 0.15000000596046448,
+                "6": 0.06666667014360428,
+                "7": 0.30000001192092896,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.800000011920929,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.550000011920929,
+              "known_length_exact_sequence_accuracy": 0.225,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.8500000238418579,
+                "2": 0.48571428656578064,
+                "3": 0.30000001192092896,
+                "4": 0.4000000059604645,
+                "5": 0.25,
+                "6": 0.2666666805744171,
+                "7": 0.10000000149011612,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_h": {
+          "length_train_loss": 0.012239944189786911,
+          "order_train_loss": 0.0030608028173446655,
+          "test": {
+            "length": {
+              "accuracy": 0.550000011920929,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5454545617103577,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.4285714328289032,
+                "3": 0.3333333432674408,
+                "4": 0.23999999463558197,
+                "5": 0.20000000298023224,
+                "6": 0.13333334028720856,
+                "7": 0.4000000059604645,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.574999988079071,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5045454502105713,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.75,
+                "2": 0.4000000059604645,
+                "3": 0.23333333432674408,
+                "4": 0.36000001430511475,
+                "5": 0.30000001192092896,
+                "6": 0.2666666805744171,
+                "7": 0.0,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_hc": {
+          "length_train_loss": 0.003909507300704718,
+          "order_train_loss": 0.0009183937800116837,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.581818163394928,
+              "known_length_exact_sequence_accuracy": 0.325,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.6000000238418579,
+                "3": 0.36666667461395264,
+                "4": 0.36000001430511475,
+                "5": 0.15000000596046448,
+                "6": 0.20000000298023224,
+                "7": 0.30000001192092896,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.7749999761581421,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5363636612892151,
+              "known_length_exact_sequence_accuracy": 0.225,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.8500000238418579,
+                "2": 0.48571428656578064,
+                "3": 0.23333333432674408,
+                "4": 0.3199999928474426,
+                "5": 0.20000000298023224,
+                "6": 0.3333333432674408,
+                "7": 0.20000000298023224,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "flattened_state_probes": {
+        "flat_c": {
+          "length_train_loss": 9.647378465160728e-05,
+          "order_train_loss": 9.902292367769405e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7409090995788574,
+              "known_length_exact_sequence_accuracy": 0.525,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.8285714387893677,
+                "3": 0.6666666865348816,
+                "4": 0.6800000071525574,
+                "5": 0.3499999940395355,
+                "6": 0.46666666865348816,
+                "7": 0.4000000059604645,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7272727489471436,
+              "known_length_exact_sequence_accuracy": 0.35,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 0.9750000238418579,
+                "2": 0.7142857313156128,
+                "3": 0.5333333611488342,
+                "4": 0.6800000071525574,
+                "5": 0.6000000238418579,
+                "6": 0.46666666865348816,
+                "7": 0.4000000059604645,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_h": {
+          "length_train_loss": 9.99802869046107e-05,
+          "order_train_loss": 9.993720595957711e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7636363506317139,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.949999988079071,
+                "2": 0.8857142925262451,
+                "3": 0.800000011920929,
+                "4": 0.7599999904632568,
+                "5": 0.3499999940395355,
+                "6": 0.2666666805744171,
+                "7": 0.5,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7545454502105713,
+              "known_length_exact_sequence_accuracy": 0.45,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 0.9750000238418579,
+                "2": 0.800000011920929,
+                "3": 0.6333333253860474,
+                "4": 0.8399999737739563,
+                "5": 0.5,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_hc": {
+          "length_train_loss": 9.983108611777425e-05,
+          "order_train_loss": 9.553733980283141e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7227272987365723,
+              "known_length_exact_sequence_accuracy": 0.45,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 0.949999988079071,
+                "2": 0.7428571581840515,
+                "3": 0.7333333492279053,
+                "4": 0.6399999856948853,
+                "5": 0.4000000059604645,
+                "6": 0.3333333432674408,
+                "7": 0.5,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.9750000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.668181836605072,
+              "known_length_exact_sequence_accuracy": 0.375,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.925000011920929,
+                "1": 0.8500000238418579,
+                "2": 0.800000011920929,
+                "3": 0.4333333373069763,
+                "4": 0.7200000286102295,
+                "5": 0.44999998807907104,
+                "6": 0.46666666865348816,
+                "7": 0.10000000149011612,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "item_embedding_probe": {
+        "test": {
+          "accuracy": 1.0,
+          "count": 220
+        },
+        "train": {
+          "accuracy": 1.0,
+          "count": 1760
+        },
+        "train_loss": 9.801390842767432e-05,
+        "val": {
+          "accuracy": 1.0,
+          "count": 220
+        }
+      },
+      "memory_trajectory_probe": {
+        "current_item_train_loss": 0.0008001790847629309,
+        "past_set_train_loss": 0.0004716910480055958,
+        "prefix_order_train_loss": 0.0014395409962162375,
+        "state_definition": "[h_t;c_t]",
+        "test": {
+          "current_item": {
+            "current_item_accuracy": 0.9818181991577148,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.7,
+              "9": 0.8
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 0.9954545454545455,
+            "past_set_mean_recall": 0.9994318181818181,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.9,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.9875,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.7714285714285715,
+              "4": 0.6333333333333333,
+              "5": 0.12,
+              "6": 0.05,
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9238095283508301,
+              "4": 0.9,
+              "5": 0.7200000137090683,
+              "6": 0.6250000096857548,
+              "7": 0.5619047741095226,
+              "8": 0.4875,
+              "9": 0.4666666865348816
+            },
+            "prefix_order_exact_accuracy": 0.5909090909090909,
+            "prefix_order_token_accuracy": 0.742682933807373,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        },
+        "train": {
+          "current_item": {
+            "current_item_accuracy": 1.0,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "prefix_order_exact_accuracy": 1.0,
+            "prefix_order_token_accuracy": 1.0,
+            "prefix_token_count": 6560,
+            "state_count": 1760
+          }
+        },
+        "val": {
+          "current_item": {
+            "current_item_accuracy": 0.9909090995788574,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.8666666666666667,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 0.990909090909091,
+            "past_set_mean_recall": 0.9987824675324676,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9333333333333333,
+              "8": 0.9,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9904761904761905,
+              "8": 0.9875,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9142857142857143,
+              "4": 0.3333333333333333,
+              "5": 0.12,
+              "6": 0.05,
+              "7": 0.06666666666666667,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9714285731315613,
+              "4": 0.7666666666666667,
+              "5": 0.704000016450882,
+              "6": 0.6166666731238365,
+              "7": 0.5904762009779613,
+              "8": 0.4375,
+              "9": 0.44444445371627805
+            },
+            "prefix_order_exact_accuracy": 0.5772727272727273,
+            "prefix_order_token_accuracy": 0.7231707572937012,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        }
+      },
+      "requested": "epoch 139 best-full",
+      "selection_key": "full_sequence",
+      "selection_score": [
+        0.3,
+        0.6538461538461539,
+        0.875,
+        -1.5288887023925781
+      ],
+      "source_epoch": 139,
+      "source_stage": 2
+    },
+    "epoch160_latest": {
+      "checkpoint": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629/milestones/epoch_160/latest.pt",
+      "final_state_probes": {
+        "final_c": {
+          "length_train_loss": 0.008036288432776928,
+          "order_train_loss": 0.0014659739099442959,
+          "test": {
+            "length": {
+              "accuracy": 0.75,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6136363744735718,
+              "known_length_exact_sequence_accuracy": 0.3,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.7428571581840515,
+                "3": 0.36666667461395264,
+                "4": 0.4399999976158142,
+                "5": 0.15000000596046448,
+                "6": 0.20000000298023224,
+                "7": 0.30000001192092896,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.75,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5954545736312866,
+              "known_length_exact_sequence_accuracy": 0.25,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.6000000238418579,
+                "3": 0.3333333432674408,
+                "4": 0.4000000059604645,
+                "5": 0.30000001192092896,
+                "6": 0.2666666805744171,
+                "7": 0.20000000298023224,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_h": {
+          "length_train_loss": 0.011689209379255772,
+          "order_train_loss": 0.0023771661799401045,
+          "test": {
+            "length": {
+              "accuracy": 0.574999988079071,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5954545736312866,
+              "known_length_exact_sequence_accuracy": 0.325,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.6571428775787354,
+                "3": 0.4000000059604645,
+                "4": 0.3199999928474426,
+                "5": 0.20000000298023224,
+                "6": 0.20000000298023224,
+                "7": 0.4000000059604645,
+                "8": 0.800000011920929
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.6000000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.7749999761581421,
+                "2": 0.34285715222358704,
+                "3": 0.23333333432674408,
+                "4": 0.36000001430511475,
+                "5": 0.25,
+                "6": 0.2666666805744171,
+                "7": 0.0,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_hc": {
+          "length_train_loss": 0.0034882482141256332,
+          "order_train_loss": 0.0006641559884883463,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6090909242630005,
+              "known_length_exact_sequence_accuracy": 0.35,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.8999999761581421,
+                "2": 0.7428571581840515,
+                "3": 0.36666667461395264,
+                "4": 0.4000000059604645,
+                "5": 0.15000000596046448,
+                "6": 0.13333334028720856,
+                "7": 0.30000001192092896,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.824999988079071,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5636363625526428,
+              "known_length_exact_sequence_accuracy": 0.225,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.5142857432365417,
+                "3": 0.2666666805744171,
+                "4": 0.4000000059604645,
+                "5": 0.25,
+                "6": 0.3333333432674408,
+                "7": 0.10000000149011612,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "flattened_state_probes": {
+        "flat_c": {
+          "length_train_loss": 9.844938904279843e-05,
+          "order_train_loss": 9.920883167069405e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6954545378684998,
+              "known_length_exact_sequence_accuracy": 0.475,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.800000011920929,
+                "3": 0.6333333253860474,
+                "4": 0.47999998927116394,
+                "5": 0.30000001192092896,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7136363387107849,
+              "known_length_exact_sequence_accuracy": 0.425,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.9750000238418579,
+                "2": 0.7714285850524902,
+                "3": 0.6000000238418579,
+                "4": 0.6399999856948853,
+                "5": 0.5,
+                "6": 0.3333333432674408,
+                "7": 0.30000001192092896,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_h": {
+          "length_train_loss": 9.957532165572047e-05,
+          "order_train_loss": 9.99871117528528e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.75,
+              "known_length_exact_sequence_accuracy": 0.475,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.949999988079071,
+                "2": 0.8857142925262451,
+                "3": 0.800000011920929,
+                "4": 0.7599999904632568,
+                "5": 0.30000001192092896,
+                "6": 0.20000000298023224,
+                "7": 0.4000000059604645,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7363636493682861,
+              "known_length_exact_sequence_accuracy": 0.45,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.9750000238418579,
+                "2": 0.7714285850524902,
+                "3": 0.6666666865348816,
+                "4": 0.800000011920929,
+                "5": 0.44999998807907104,
+                "6": 0.3333333432674408,
+                "7": 0.30000001192092896,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_hc": {
+          "length_train_loss": 8.822001836961135e-05,
+          "order_train_loss": 9.795616642804816e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7363636493682861,
+              "known_length_exact_sequence_accuracy": 0.475,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.7714285850524902,
+                "3": 0.7333333492279053,
+                "4": 0.6800000071525574,
+                "5": 0.44999998807907104,
+                "6": 0.3333333432674408,
+                "7": 0.5,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.9750000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6818181872367859,
+              "known_length_exact_sequence_accuracy": 0.425,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.925000011920929,
+                "1": 0.875,
+                "2": 0.800000011920929,
+                "3": 0.5333333611488342,
+                "4": 0.6399999856948853,
+                "5": 0.5,
+                "6": 0.46666666865348816,
+                "7": 0.10000000149011612,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "item_embedding_probe": {
+        "test": {
+          "accuracy": 1.0,
+          "count": 220
+        },
+        "train": {
+          "accuracy": 1.0,
+          "count": 1760
+        },
+        "train_loss": 9.757685620570555e-05,
+        "val": {
+          "accuracy": 1.0,
+          "count": 220
+        }
+      },
+      "memory_trajectory_probe": {
+        "current_item_train_loss": 0.0008061616099439561,
+        "past_set_train_loss": 0.0004919839557260275,
+        "prefix_order_train_loss": 0.001017065835185349,
+        "state_definition": "[h_t;c_t]",
+        "test": {
+          "current_item": {
+            "current_item_accuracy": 0.9863636493682861,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.7,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 0.9954545454545455,
+            "past_set_mean_recall": 0.9994318181818181,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.9,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 0.9875,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8285714285714286,
+              "4": 0.6,
+              "5": 0.16,
+              "6": 0.1,
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9428571462631226,
+              "4": 0.8833333333333333,
+              "5": 0.7440000122785568,
+              "6": 0.6250000059604645,
+              "7": 0.5904762029647828,
+              "8": 0.525,
+              "9": 0.44444445967674256
+            },
+            "prefix_order_exact_accuracy": 0.6045454545454545,
+            "prefix_order_token_accuracy": 0.752439022064209,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        },
+        "train": {
+          "current_item": {
+            "current_item_accuracy": 1.0,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "prefix_order_exact_accuracy": 1.0,
+            "prefix_order_token_accuracy": 1.0,
+            "prefix_token_count": 6560,
+            "state_count": 1760
+          }
+        },
+        "val": {
+          "current_item": {
+            "current_item_accuracy": 0.9727272987365723,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 0.96,
+              "6": 1.0,
+              "7": 0.9333333333333333,
+              "8": 0.9,
+              "9": 0.4
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 0.9954545454545455,
+            "past_set_mean_recall": 0.9993506493506493,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9333333333333333,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9904761904761905,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9142857142857143,
+              "4": 0.4666666666666667,
+              "5": 0.16,
+              "6": 0.1,
+              "7": 0.06666666666666667,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9714285731315613,
+              "4": 0.8333333333333334,
+              "5": 0.704000016450882,
+              "6": 0.6416666731238365,
+              "7": 0.5809523940086365,
+              "8": 0.425,
+              "9": 0.4444444626569748
+            },
+            "prefix_order_exact_accuracy": 0.6045454545454545,
+            "prefix_order_token_accuracy": 0.7341463565826416,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        }
+      },
+      "requested": "epoch 160 latest",
+      "selection_key": "full_sequence",
+      "selection_score": [
+        0.275,
+        0.65,
+        0.9,
+        -1.6751553813616435
+      ],
+      "source_epoch": 159,
+      "source_stage": 2
+    },
+    "epoch200_latest": {
+      "checkpoint": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629/milestones/epoch_200/latest.pt",
+      "final_state_probes": {
+        "final_c": {
+          "length_train_loss": 0.006578580476343632,
+          "order_train_loss": 0.0010380956809967756,
+          "test": {
+            "length": {
+              "accuracy": 0.699999988079071,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6272727251052856,
+              "known_length_exact_sequence_accuracy": 0.35,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.875,
+                "2": 0.8285714387893677,
+                "3": 0.3333333432674408,
+                "4": 0.4399999976158142,
+                "5": 0.20000000298023224,
+                "6": 0.20000000298023224,
+                "7": 0.30000001192092896,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.7250000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6136363744735718,
+              "known_length_exact_sequence_accuracy": 0.25,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.6571428775787354,
+                "3": 0.4000000059604645,
+                "4": 0.4399999976158142,
+                "5": 0.3499999940395355,
+                "6": 0.20000000298023224,
+                "7": 0.10000000149011612,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_h": {
+          "length_train_loss": 0.009044134989380836,
+          "order_train_loss": 0.0017812945879995823,
+          "test": {
+            "length": {
+              "accuracy": 0.5,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5863636136054993,
+              "known_length_exact_sequence_accuracy": 0.375,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 0.8500000238418579,
+                "2": 0.6857143044471741,
+                "3": 0.3333333432674408,
+                "4": 0.3199999928474426,
+                "5": 0.25,
+                "6": 0.13333334028720856,
+                "7": 0.4000000059604645,
+                "8": 0.6000000238418579
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.6000000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.5,
+              "known_length_exact_sequence_accuracy": 0.2,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.7749999761581421,
+                "2": 0.4000000059604645,
+                "3": 0.23333333432674408,
+                "4": 0.3199999928474426,
+                "5": 0.25,
+                "6": 0.2666666805744171,
+                "7": 0.0,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "final_hc": {
+          "length_train_loss": 0.0028630502056330442,
+          "order_train_loss": 0.0004828342644032091,
+          "test": {
+            "length": {
+              "accuracy": 0.625,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6090909242630005,
+              "known_length_exact_sequence_accuracy": 0.375,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.824999988079071,
+                "2": 0.7714285850524902,
+                "3": 0.4000000059604645,
+                "4": 0.4399999976158142,
+                "5": 0.20000000298023224,
+                "6": 0.13333334028720856,
+                "7": 0.30000001192092896,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 0.8500000238418579,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6136363744735718,
+              "known_length_exact_sequence_accuracy": 0.25,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.949999988079071,
+                "2": 0.6285714507102966,
+                "3": 0.4000000059604645,
+                "4": 0.36000001430511475,
+                "5": 0.3499999940395355,
+                "6": 0.2666666805744171,
+                "7": 0.20000000298023224,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "flattened_state_probes": {
+        "flat_c": {
+          "length_train_loss": 9.772762132342905e-05,
+          "order_train_loss": 9.82486890279688e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7363636493682861,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.925000011920929,
+                "2": 0.8571428656578064,
+                "3": 0.6666666865348816,
+                "4": 0.6800000071525574,
+                "5": 0.3499999940395355,
+                "6": 0.3333333432674408,
+                "7": 0.4000000059604645,
+                "8": 0.4000000059604645
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6863636374473572,
+              "known_length_exact_sequence_accuracy": 0.35,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.9750000238418579,
+                "2": 0.7714285850524902,
+                "3": 0.5,
+                "4": 0.6399999856948853,
+                "5": 0.44999998807907104,
+                "6": 0.3333333432674408,
+                "7": 0.10000000149011612,
+                "8": 0.20000000298023224
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_h": {
+          "length_train_loss": 9.951527317753062e-05,
+          "order_train_loss": 9.991041588364169e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7227272987365723,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.949999988079071,
+                "2": 0.8857142925262451,
+                "3": 0.7333333492279053,
+                "4": 0.7200000286102295,
+                "5": 0.30000001192092896,
+                "6": 0.06666667014360428,
+                "7": 0.30000001192092896,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.7272727489471436,
+              "known_length_exact_sequence_accuracy": 0.5,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.9750000238418579,
+                "1": 1.0,
+                "2": 0.8285714387893677,
+                "3": 0.6000000238418579,
+                "4": 0.7200000286102295,
+                "5": 0.4000000059604645,
+                "6": 0.4000000059604645,
+                "7": 0.20000000298023224,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        },
+        "flat_hc": {
+          "length_train_loss": 8.495849033351988e-05,
+          "order_train_loss": 9.6953081083484e-05,
+          "test": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6954545378684998,
+              "known_length_exact_sequence_accuracy": 0.425,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 0.8999999761581421,
+                "2": 0.7428571581840515,
+                "3": 0.6666666865348816,
+                "4": 0.5600000023841858,
+                "5": 0.4000000059604645,
+                "6": 0.13333334028720856,
+                "7": 0.699999988079071,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          },
+          "train": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 320
+            },
+            "order": {
+              "block_token_count": 1760,
+              "block_token_order_accuracy": 1.0,
+              "known_length_exact_sequence_accuracy": 1.0,
+              "sequence_count": 320,
+              "serial_position_accuracy": {
+                "0": 1.0,
+                "1": 1.0,
+                "2": 1.0,
+                "3": 1.0,
+                "4": 1.0,
+                "5": 1.0,
+                "6": 1.0,
+                "7": 1.0,
+                "8": 1.0
+              },
+              "serial_position_count": {
+                "0": 320,
+                "1": 320,
+                "2": 280,
+                "3": 240,
+                "4": 200,
+                "5": 160,
+                "6": 120,
+                "7": 80,
+                "8": 40
+              }
+            }
+          },
+          "val": {
+            "length": {
+              "accuracy": 1.0,
+              "count": 40
+            },
+            "order": {
+              "block_token_count": 220,
+              "block_token_order_accuracy": 0.6727272868156433,
+              "known_length_exact_sequence_accuracy": 0.35,
+              "sequence_count": 40,
+              "serial_position_accuracy": {
+                "0": 0.949999988079071,
+                "1": 0.8500000238418579,
+                "2": 0.7714285850524902,
+                "3": 0.5,
+                "4": 0.6000000238418579,
+                "5": 0.550000011920929,
+                "6": 0.46666666865348816,
+                "7": 0.10000000149011612,
+                "8": 0.0
+              },
+              "serial_position_count": {
+                "0": 40,
+                "1": 40,
+                "2": 35,
+                "3": 30,
+                "4": 25,
+                "5": 20,
+                "6": 15,
+                "7": 10,
+                "8": 5
+              }
+            }
+          }
+        }
+      },
+      "item_embedding_probe": {
+        "test": {
+          "accuracy": 1.0,
+          "count": 220
+        },
+        "train": {
+          "accuracy": 1.0,
+          "count": 1760
+        },
+        "train_loss": 9.564160427544266e-05,
+        "val": {
+          "accuracy": 1.0,
+          "count": 220
+        }
+      },
+      "memory_trajectory_probe": {
+        "current_item_train_loss": 0.0008936358499340713,
+        "past_set_train_loss": 0.000502940674778074,
+        "prefix_order_train_loss": 0.0006301046814769506,
+        "state_definition": "[h_t;c_t]",
+        "test": {
+          "current_item": {
+            "current_item_accuracy": 0.9727272987365723,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.8666666666666667,
+              "8": 0.7,
+              "9": 0.8
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.8857142857142857,
+              "4": 0.6666666666666666,
+              "5": 0.2,
+              "6": 0.1,
+              "7": 0.0,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.961904764175415,
+              "4": 0.9083333333333333,
+              "5": 0.7360000133514404,
+              "6": 0.6416666731238365,
+              "7": 0.5714285850524903,
+              "8": 0.5,
+              "9": 0.4000000089406967
+            },
+            "prefix_order_exact_accuracy": 0.6272727272727273,
+            "prefix_order_token_accuracy": 0.752439022064209,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        },
+        "train": {
+          "current_item": {
+            "current_item_accuracy": 1.0,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 1.0,
+            "past_set_mean_recall": 1.0,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 1760
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 1.0,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "prefix_order_exact_accuracy": 1.0,
+            "prefix_order_token_accuracy": 1.0,
+            "prefix_token_count": 6560,
+            "state_count": 1760
+          }
+        },
+        "val": {
+          "current_item": {
+            "current_item_accuracy": 0.9818181991577148,
+            "per_write_step_current": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9333333333333333,
+              "8": 0.8,
+              "9": 0.8
+            },
+            "state_count": 220
+          },
+          "past_set": {
+            "past_set_exact_accuracy": 0.9954545454545455,
+            "past_set_mean_recall": 0.9993506493506493,
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9333333333333333,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "per_write_step_recall": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 1.0,
+              "4": 1.0,
+              "5": 1.0,
+              "6": 1.0,
+              "7": 0.9904761904761905,
+              "8": 1.0,
+              "9": 1.0
+            },
+            "state_count": 220
+          },
+          "prefix_order": {
+            "per_write_step_exact": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9428571428571428,
+              "4": 0.5,
+              "5": 0.32,
+              "6": 0.1,
+              "7": 0.06666666666666667,
+              "8": 0.0,
+              "9": 0.0
+            },
+            "per_write_step_token": {
+              "1": 1.0,
+              "2": 1.0,
+              "3": 0.9809523820877075,
+              "4": 0.825,
+              "5": 0.7760000133514404,
+              "6": 0.6833333358168602,
+              "7": 0.5714285850524903,
+              "8": 0.425,
+              "9": 0.44444445967674256
+            },
+            "prefix_order_exact_accuracy": 0.6318181818181818,
+            "prefix_order_token_accuracy": 0.75,
+            "prefix_token_count": 820,
+            "state_count": 220
+          }
+        }
+      },
+      "requested": "epoch 200 latest",
+      "selection_key": "full_sequence",
+      "selection_score": [
+        0.225,
+        0.6307692307692307,
+        0.9,
+        -1.9352551500002544
+      ],
+      "source_epoch": 199,
+      "source_stage": 2
+    }
+  },
+  "config": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/configs/memory_recall_v2_k12_dmem64.json",
+  "created_time": 1782745702.729211,
+  "device": "cpu",
+  "elapsed_sec": 270.7372260093689,
+  "eos_token_id": 9,
+  "ignore_index": -100,
+  "manifest_path": "corsi_artifacts/memory_recall_v2/canonical/corsi_memory_recall_v2_k12/manifest.json",
+  "max_sequence_length": 9,
+  "notes": [
+    "Frozen main-model diagnostics only; probe heads are the only trained parameters.",
+    "P1.2 defines M_t as concatenated [h_t;c_t].",
+    "P1.4 pads missing future memory states with zeros before flattening."
+  ],
+  "num_blocks": 9,
+  "probe_steps": 900,
+  "run_root": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629"
+}

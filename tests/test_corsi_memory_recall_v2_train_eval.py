@@ -31,7 +31,7 @@ def test_sequence_metrics_cover_masks_lengths_eos_and_taxonomy():
     predictions = torch.tensor(
         [
             [0, 1, 2, 9, 8],
-            [3, 8, 4, 9, 0],
+            [3, 4, 4, 9, 0],
             [5, 7, 6, 9, 0],
             [1, 9, 0, 0, 0],
             [4, 8, 9, 0, 0],
@@ -44,11 +44,31 @@ def test_sequence_metrics_cover_masks_lengths_eos_and_taxonomy():
     assert metrics["eos_accuracy"] == pytest.approx(0.6)
     assert metrics["predicted_length_accuracy"] == pytest.approx(0.6)
     assert metrics["per_length_accuracy"]["2"]["count"] == 3
+    assert metrics["per_length_token_accuracy"]["2"]["count"] == 3
+    assert metrics["per_length_metrics"]["2"]["duplicate_sequence_rate"] > 0.0
     assert metrics["serial_position_accuracy"]["0"]["accuracy"] == pytest.approx(1.0)
+    assert metrics["duplicate_metrics"]["sequence_duplicate_rate"] == pytest.approx(0.2)
+    assert metrics["mean_unique_predicted_blocks"] > 0.0
+    assert metrics["set_overlap_metrics"]["mean_jaccard"] > 0.0
+    assert metrics["failure_taxonomy"]["duplicate_error"]["count"] == 1
+    assert metrics["rows"][1]["has_duplicate_prediction"] is True
+    assert metrics["rows"][1]["duplicate_count"] == 1
+    assert metrics["rows"][1]["set_overlap_jaccard"] == pytest.approx(1.0)
+    assert metrics["rows"][1]["failure_flags"]["duplicate_error"] is True
+    assert metrics["rows"][1]["target_tokens"] == [3, 4, 9]
+    assert metrics["rows"][1]["predicted_blocks"] == [3, 4, 4]
     assert metrics["error_taxonomy"]["substitution"] >= 1
     assert metrics["error_taxonomy"]["omission"] >= 1
     assert metrics["error_taxonomy"]["insertion"] >= 1
     assert metrics["error_taxonomy"]["transposition"] >= 1
+    sanity = metrics["behavior_sanity"]
+    assert sanity["serial_position_shape"]["first_accuracy"] == pytest.approx(1.0)
+    assert sanity["serial_position_shape"]["middle_accuracy"] == pytest.approx(0.5)
+    assert sanity["serial_position_shape"]["last_accuracy"] == pytest.approx(0.4)
+    assert sanity["serial_position_shape"]["u_shape_score"] == pytest.approx(0.2)
+    assert sanity["transposition_distance_gradient"]["distance_counts"] == {"1": 2}
+    assert sanity["transposition_distance_gradient"]["adjacent_fraction"] == pytest.approx(1.0)
+    assert sanity["transposition_distance_gradient"]["distance_dependent"] is True
 
 
 def test_presentation_order_shuffle_reverses_only_model_inputs():

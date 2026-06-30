@@ -41,6 +41,7 @@ DEFAULT_JOINT_NAMES = [
     "robot0_joint6",
     "robot0_joint7",
 ]
+SPLIT_NAMES = ("train", "val", "test")
 MODEL_INPUT_FIELDS = ["images", "segment_mask", "frame_mask"]
 FORBIDDEN_MODEL_INPUT_FIELDS = [
     "target_tokens",
@@ -333,6 +334,7 @@ def canonicalize_episode(
     }
     episode_meta = {
         "seq_id": seq_id,
+        **({"split": str(sample["split"])} if "split" in sample else {}),
         "length": length,
         "block_order": block_order,
         "target_tokens": target_tokens.tolist(),
@@ -389,6 +391,56 @@ def deterministic_split(
         split["test"].extend(
             str(item["seq_id"]) for item in rows[train_per_length + val_per_length :]
         )
+    return {key: sorted(values) for key, values in split.items()}
+
+
+def _split_length_counts_from_config(config: Mapping[str, Any]) -> dict[str, dict[int, int]] | None:
+    raw_counts = config.get("split_length_counts") or config.get("expected_split_length_counts")
+    if raw_counts is None:
+        return None
+    result: dict[str, dict[int, int]] = {}
+    for split in SPLIT_NAMES:
+        split_counts = raw_counts.get(split, {}) if isinstance(raw_counts, Mapping) else {}
+        result[split] = {int(length): int(count) for length, count in dict(split_counts).items()}
+    return result
+
+
+def split_from_sample_labels(samples: Sequence[Mapping[str, Any]]) -> dict[str, list[str]]:
+    split = {name: [] for name in SPLIT_NAMES}
+    missing = [str(sample["seq_id"]) for sample in samples if "split" not in sample]
+    if missing:
+        raise ValueError(f"raw samples mix explicit split labels with missing labels: {missing[:5]}")
+    for sample in samples:
+        split_name = str(sample["split"])
+        if split_name not in split:
+            raise ValueError(f"{sample['seq_id']}: unexpected split {split_name!r}")
+        split[split_name].append(str(sample["seq_id"]))
+    return {key: sorted(values) for key, values in split.items()}
+
+
+def deterministic_split_by_counts(
+    samples: list[Mapping[str, Any]],
+    *,
+    split_seed: int,
+    split_length_counts: Mapping[str, Mapping[int, int]],
+) -> dict[str, list[str]]:
+    by_length: dict[int, list[Mapping[str, Any]]] = defaultdict(list)
+    for sample in samples:
+        by_length[int(sample["length"])].append(sample)
+
+    split = {name: [] for name in SPLIT_NAMES}
+    for length, rows_for_length in sorted(by_length.items()):
+        expected = int(sum(int(split_length_counts.get(name, {}).get(length, 0)) for name in SPLIT_NAMES))
+        if len(rows_for_length) != expected:
+            raise ValueError(f"length {length}: expected {expected} episodes, got {len(rows_for_length)}")
+        rows = sorted(rows_for_length, key=lambda item: str(item["seq_id"]))
+        rng = random.Random(int(split_seed) + length)
+        rng.shuffle(rows)
+        cursor = 0
+        for split_name in SPLIT_NAMES:
+            count = int(split_length_counts.get(split_name, {}).get(length, 0))
+            split[split_name].extend(str(item["seq_id"]) for item in rows[cursor : cursor + count])
+            cursor += count
     return {key: sorted(values) for key, values in split.items()}
 
 
@@ -530,13 +582,24 @@ def build_canonical_dataset(config: Mapping[str, Any], *, overwrite: bool = Fals
         np.savez_compressed(episode_path, **arrays)
         manifest_samples.append({**episode_meta, "canonical_path": str(episode_path)})
 
-    split = deterministic_split(
-        manifest_samples,
-        split_seed=int(config.get("split_seed", 20260624)),
-        train_per_length=int(config.get("train_per_length", 40)),
-        val_per_length=int(config.get("val_per_length", 5)),
-        test_per_length=int(config.get("test_per_length", 5)),
-    )
+    if any("split" in sample for sample in manifest_samples):
+        split = split_from_sample_labels(manifest_samples)
+    else:
+        split_counts = _split_length_counts_from_config(config)
+        if split_counts is not None:
+            split = deterministic_split_by_counts(
+                manifest_samples,
+                split_seed=int(config.get("split_seed", 20260624)),
+                split_length_counts=split_counts,
+            )
+        else:
+            split = deterministic_split(
+                manifest_samples,
+                split_seed=int(config.get("split_seed", 20260624)),
+                train_per_length=int(config.get("train_per_length", 40)),
+                val_per_length=int(config.get("val_per_length", 5)),
+                test_per_length=int(config.get("test_per_length", 5)),
+            )
     normalization = _fit_stats(canonical_root, manifest_samples, split["train"])
     manifest = {
         "schema_version": SCHEMA_VERSION,

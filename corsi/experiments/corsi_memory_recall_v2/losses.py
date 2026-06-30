@@ -12,6 +12,8 @@ from torch.nn import functional as F
 DEFAULT_LOSS_WEIGHTS = {
     "seq": 1.0,
     "memory_order": 0.3,
+    "memory_identity": 0.0,
+    "memory_aux_orthogonal": 0.0,
     "memory_order_final": 0.0,
     "memory_length": 0.0,
     "coord": 0.05,
@@ -138,6 +140,70 @@ def memory_order_prefix_loss(
     return (per_token * weights).sum() / weights.sum().clamp_min(1.0)
 
 
+def memory_identity_current_loss(
+    logits: Tensor,
+    target_tokens: Tensor,
+    *,
+    segment_mask: Tensor,
+    token_mask: Tensor | None = None,
+    eos_token_id: int = 9,
+    ignore_index: int = -100,
+) -> Tensor:
+    """CE from each memory update state to the item written at that update."""
+
+    if logits.ndim != 3:
+        raise ValueError(f"expected memory identity logits [B,L,C], got shape={tuple(logits.shape)}")
+    if segment_mask.shape != logits.shape[:2]:
+        raise ValueError(
+            f"segment_mask shape {tuple(segment_mask.shape)} does not match logits [B,L]={tuple(logits.shape[:2])}"
+        )
+    updates = int(logits.shape[1])
+    targets = target_tokens[:, :updates].to(device=logits.device)
+    if targets.shape[1] < updates:
+        pad = torch.full(
+            (targets.shape[0], updates - targets.shape[1]),
+            int(ignore_index),
+            dtype=targets.dtype,
+            device=targets.device,
+        )
+        targets = torch.cat([targets, pad], dim=1)
+    valid = (
+        segment_mask[:, :updates].to(device=logits.device, dtype=torch.bool)
+        & targets.ne(int(ignore_index))
+        & targets.ne(int(eos_token_id))
+    )
+    if token_mask is not None:
+        mask = token_mask[:, :updates].to(device=logits.device, dtype=torch.bool)
+        if mask.shape[1] < updates:
+            pad = torch.zeros(
+                (mask.shape[0], updates - mask.shape[1]),
+                dtype=torch.bool,
+                device=mask.device,
+            )
+            mask = torch.cat([mask, pad], dim=1)
+        valid = valid & mask
+    if not bool(valid.any()):
+        return logits.sum() * 0.0
+    return F.cross_entropy(logits[valid], targets[valid])
+
+
+def memory_aux_orthogonal_loss(order_weight: Tensor, identity_weight: Tensor) -> Tensor:
+    """Penalty for shared input directions between order and identity aux heads."""
+
+    if order_weight.ndim != 2 or identity_weight.ndim != 2:
+        raise ValueError(
+            "expected order and identity head weights shaped [classes, features], got "
+            f"{tuple(order_weight.shape)} and {tuple(identity_weight.shape)}"
+        )
+    if order_weight.shape[1] != identity_weight.shape[1]:
+        raise ValueError(
+            f"head feature dimensions differ: {order_weight.shape[1]} vs {identity_weight.shape[1]}"
+        )
+    order = F.normalize(order_weight, dim=1)
+    identity = F.normalize(identity_weight, dim=1)
+    return order.matmul(identity.t()).pow(2).mean()
+
+
 def final_memory_order_loss(
     logits: Tensor,
     target_tokens: Tensor,
@@ -230,16 +296,50 @@ def combined_v2_loss(
     total = total + float(loss_weights["seq"]) * seq
 
     if "memory_order_logits" in outputs and float(loss_weights["memory_order"]) != 0.0:
+        segment_mask = (
+            frame_mask.any(dim=-1)
+            if frame_mask is not None and frame_mask.ndim == 3
+            else targets["block_xy"].new_ones(outputs["memory_order_logits"].shape[:2], dtype=torch.bool)
+        )
         memory_order = memory_order_prefix_loss(
             outputs["memory_order_logits"],
             targets["tokens"],
-            segment_mask=frame_mask.any(dim=-1) if frame_mask is not None and frame_mask.ndim == 3 else targets["block_xy"].new_ones(outputs["memory_order_logits"].shape[:2], dtype=torch.bool),
+            segment_mask=segment_mask,
             token_mask=targets.get("token_mask"),
             eos_token_id=eos_token_id,
             ignore_index=ignore_index,
         )
         result["memory_order_loss"] = memory_order
         total = total + float(loss_weights["memory_order"]) * memory_order
+
+    if "memory_identity_logits" in outputs and float(loss_weights["memory_identity"]) != 0.0:
+        segment_mask = (
+            frame_mask.any(dim=-1)
+            if frame_mask is not None and frame_mask.ndim == 3
+            else targets["block_xy"].new_ones(outputs["memory_identity_logits"].shape[:2], dtype=torch.bool)
+        )
+        memory_identity = memory_identity_current_loss(
+            outputs["memory_identity_logits"],
+            targets["tokens"],
+            segment_mask=segment_mask,
+            token_mask=targets.get("token_mask"),
+            eos_token_id=eos_token_id,
+            ignore_index=ignore_index,
+        )
+        result["memory_identity_loss"] = memory_identity
+        total = total + float(loss_weights["memory_identity"]) * memory_identity
+
+    if (
+        "memory_order_head_weight" in outputs
+        and "memory_identity_head_weight" in outputs
+        and float(loss_weights["memory_aux_orthogonal"]) != 0.0
+    ):
+        memory_aux_orthogonal = memory_aux_orthogonal_loss(
+            outputs["memory_order_head_weight"],
+            outputs["memory_identity_head_weight"],
+        )
+        result["memory_aux_orthogonal_loss"] = memory_aux_orthogonal
+        total = total + float(loss_weights["memory_aux_orthogonal"]) * memory_aux_orthogonal
 
     if "final_memory_order_logits" in outputs and float(loss_weights["memory_order_final"]) != 0.0:
         final_memory_order = final_memory_order_loss(
@@ -309,13 +409,15 @@ def compute_stage1_loss(
     batch: Mapping[str, Any],
     *,
     weights: Mapping[str, float] | None = None,
-) -> Tensor:
+    return_components: bool = False,
+) -> Tensor | dict[str, Tensor]:
     """Stage 1 auxiliary reconstruction objective over presentation frames."""
 
     targets = batch["targets"]
     frame_mask = batch["model_inputs"]["frame_mask"]
     loss_weights = {"joint": 1.0, "ee_pose": 0.5, "ee_xy": 0.5, **dict(weights or {})}
-    losses: list[Tensor] = []
+    total: Tensor | None = None
+    result: dict[str, Tensor] = {}
     for output_key, target_key in (
         ("pred_joint", "joint"),
         ("joint", "joint"),
@@ -326,10 +428,16 @@ def compute_stage1_loss(
     ):
         if output_key in outputs and target_key in targets:
             loss = pose_auxiliary_loss(outputs[output_key], targets[target_key], mask=frame_mask)
-            losses.append(float(loss_weights[target_key]) * loss)
-    if not losses:
+            result_key = f"{target_key}_loss"
+            result[result_key] = result.get(result_key, loss.sum() * 0.0) + loss
+            weighted = float(loss_weights[target_key]) * loss
+            total = weighted if total is None else total + weighted
+    if total is None:
         raise RuntimeError("Stage 1 loss requires joint, ee_pose, or ee_xy auxiliary outputs.")
-    return sum(losses)
+    result["loss"] = total
+    if return_components:
+        return result
+    return total
 
 
 def compute_stage2_loss(
@@ -337,7 +445,8 @@ def compute_stage2_loss(
     batch: Mapping[str, Any],
     *,
     weights: Mapping[str, float] | None = None,
-) -> Tensor:
+    return_components: bool = False,
+) -> Tensor | dict[str, Tensor]:
     """Stage 2 autonomous recall objective, including weak coordinate and auxiliary terms."""
 
     loss_outputs = dict(outputs)
@@ -351,4 +460,6 @@ def compute_stage2_loss(
         ignore_index=_batch_scalar_int(batch, "ignore_index", -100),
         eos_token_id=_batch_scalar_int(batch, "eos_token_id", 9),
     )
+    if return_components:
+        return losses
     return losses["loss"]

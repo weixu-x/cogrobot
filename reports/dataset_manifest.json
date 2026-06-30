@@ -1,0 +1,234 @@
+{
+  "actual_split_length_counts": {
+    "test": {
+      "2": 20,
+      "3": 50,
+      "4": 50,
+      "5": 50,
+      "6": 50,
+      "7": 50,
+      "8": 50,
+      "9": 50
+    },
+    "train": {
+      "2": 72,
+      "3": 300,
+      "4": 600,
+      "5": 800,
+      "6": 800,
+      "7": 800,
+      "8": 800,
+      "9": 800
+    },
+    "val": {
+      "2": 10,
+      "3": 30,
+      "4": 30,
+      "5": 30,
+      "6": 30,
+      "7": 30,
+      "8": 30,
+      "9": 30
+    }
+  },
+  "baseline_dataset_design_record_found": false,
+  "canonical": {
+    "canonical_fingerprint": "94d1813b3f7b4cb5fd2107e9bcdd306683c807dacd18b1429380de1f5575df78",
+    "manifest_path": "corsi_artifacts/memory_recall_v2/canonical/corsi_memory_recall_v2_k12_expanded800_20260630/manifest.json",
+    "sample_count": 5562,
+    "split_length_counts": {
+      "test": {
+        "2": 20,
+        "3": 50,
+        "4": 50,
+        "5": 50,
+        "6": 50,
+        "7": 50,
+        "8": 50,
+        "9": 50
+      },
+      "train": {
+        "2": 72,
+        "3": 300,
+        "4": 600,
+        "5": 800,
+        "6": 800,
+        "7": 800,
+        "8": 800,
+        "9": 800
+      },
+      "val": {
+        "2": 10,
+        "3": 30,
+        "4": 30,
+        "5": 30,
+        "6": 30,
+        "7": 30,
+        "8": 30,
+        "9": 30
+      }
+    }
+  },
+  "config": "corsi/experiments/corsi_memory_recall_v2/configs/memory_recall_v2_k12_item_context_binding_auxsplit_dmem64_expanded800_20260630.json",
+  "cross_split_overlaps": [
+    {
+      "length": 2,
+      "overlap_count": 10,
+      "pair": "train/val"
+    },
+    {
+      "length": 2,
+      "overlap_count": 20,
+      "pair": "train/test"
+    },
+    {
+      "length": 2,
+      "overlap_count": 3,
+      "pair": "val/test"
+    },
+    {
+      "length": 3,
+      "overlap_count": 0,
+      "pair": "train/val"
+    },
+    {
+      "length": 3,
+      "overlap_count": 0,
+      "pair": "train/test"
+    },
+    {
+      "length": 3,
+      "overlap_count": 0,
+      "pair": "val/test"
+    },
+    {
+      "length": 4,
+      "overlap_count": 0,
+      "pair": "train/val"
+    },
+    {
+      "length": 4,
+      "overlap_count": 0,
+      "pair": "train/test"
+    },
+    {
+      "length": 4,
+      "overlap_count": 0,
+      "pair": "val/test"
+    },
+    {
+      "length": 5,
+      "overlap_count": 0,
+      "pair": "train/val"
+    },
+    {
+      "length": 5,
+      "overlap_count": 0,
+      "pair": "train/test"
+    },
+    {
+      "length": 5,
+      "overlap_count": 0,
+      "pair": "val/test"
+    },
+    {
+      "length": 6,
+      "overlap_count": 0,
+      "pair": "train/val"
+    },
+    {
+      "length": 6,
+      "overlap_count": 0,
+      "pair": "train/test"
+    },
+    {
+      "length": 6,
+      "overlap_count": 0,
+      "pair": "val/test"
+    },
+    {
+      "length": 7,
+      "overlap_count": 0,
+      "pair": "train/val"
+    },
+    {
+      "length": 7,
+      "overlap_count": 0,
+      "pair": "train/test"
+    },
+    {
+      "length": 7,
+      "overlap_count": 0,
+      "pair": "val/test"
+    },
+    {
+      "length": 8,
+      "overlap_count": 0,
+      "pair": "train/val"
+    },
+    {
+      "length": 8,
+      "overlap_count": 0,
+      "pair": "train/test"
+    },
+    {
+      "length": 8,
+      "overlap_count": 0,
+      "pair": "val/test"
+    },
+    {
+      "length": 9,
+      "overlap_count": 0,
+      "pair": "train/val"
+    },
+    {
+      "length": 9,
+      "overlap_count": 0,
+      "pair": "train/test"
+    },
+    {
+      "length": 9,
+      "overlap_count": 0,
+      "pair": "val/test"
+    }
+  ],
+  "expected_split_length_counts": {
+    "test": {
+      "2": 20,
+      "3": 50,
+      "4": 50,
+      "5": 50,
+      "6": 50,
+      "7": 50,
+      "8": 50,
+      "9": 50
+    },
+    "train": {
+      "2": 72,
+      "3": 300,
+      "4": 600,
+      "5": 800,
+      "6": 800,
+      "7": 800,
+      "8": 800,
+      "9": 800
+    },
+    "val": {
+      "2": 10,
+      "3": 30,
+      "4": 30,
+      "5": 30,
+      "6": 30,
+      "7": 30,
+      "8": 30,
+      "9": 30
+    }
+  },
+  "failures": [],
+  "internal_repeat_count": 0,
+  "length2_train_complete_count": 72,
+  "length2_train_missing_count": 0,
+  "raw_manifest_path": "corsi_artifacts/motion_base/datasets/corsi_motion_raw_len2_9_expanded800_20260630/manifest.json",
+  "raw_sample_count": 5562,
+  "status": "ok"
+}

@@ -7,7 +7,8 @@ import json
 import random
 import shutil
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
+from itertools import permutations
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -47,6 +48,7 @@ REQUIRED_ARRAYS = [
     "rank",
     "block_id",
 ]
+SPLIT_NAMES = ("train", "val", "test")
 
 
 def _parse_scalar(text: str) -> Any:
@@ -139,6 +141,31 @@ def _episode_seed(config: dict[str, Any], *, length: int, index: int) -> int:
     return int(config["seed"]) + int(length) * int(config["episode_seed_stride"]) + int(index)
 
 
+def _split_length_counts(config: dict[str, Any]) -> dict[str, dict[int, int]] | None:
+    raw_counts = config.get("split_length_counts") or config.get("expected_split_length_counts")
+    if raw_counts is None:
+        return None
+    result: dict[str, dict[int, int]] = {}
+    for split in SPLIT_NAMES:
+        split_counts = raw_counts.get(split, {}) if isinstance(raw_counts, dict) else {}
+        result[split] = {int(length): int(count) for length, count in dict(split_counts).items()}
+    if not any(result[split] for split in SPLIT_NAMES):
+        raise ValueError("split_length_counts must contain at least one split count")
+    return result
+
+
+def _expected_length_counts(config: dict[str, Any]) -> dict[int, int]:
+    split_counts = _split_length_counts(config)
+    if split_counts is not None:
+        totals: dict[int, int] = defaultdict(int)
+        for counts in split_counts.values():
+            for length, count in counts.items():
+                totals[int(length)] += int(count)
+        return dict(sorted(totals.items()))
+    per_length = int(config["num_trials_per_length"])
+    return {int(length): per_length for length in sequence_lengths(config)}
+
+
 def generate_unique_block_orders(
     *,
     length: int,
@@ -160,7 +187,66 @@ def generate_unique_block_orders(
     return [list(order) for order in sorted(selected)]
 
 
+def _all_block_orders(*, length: int, num_blocks: int) -> list[tuple[int, ...]]:
+    if length > num_blocks:
+        raise ValueError("Cannot generate no-repeat sequences longer than num_blocks")
+    return list(permutations(range(int(num_blocks)), int(length)))
+
+
+def _sample_orders(
+    *,
+    candidates: Sequence[tuple[int, ...]],
+    count: int,
+    rng: random.Random,
+) -> list[tuple[int, ...]]:
+    if int(count) > len(candidates):
+        raise ValueError(f"requested {count} sequences but only {len(candidates)} candidates are available")
+    return sorted(rng.sample(list(candidates), int(count)))
+
+
+def build_split_episode_specs(config: dict[str, Any]) -> list[dict[str, Any]]:
+    split_counts = _split_length_counts(config)
+    if split_counts is None:
+        raise ValueError("split_length_counts are required for split-aware episode specs")
+    num_blocks = int(config["num_blocks"])
+    base_seed = int(config["seed"])
+    episodes: list[dict[str, Any]] = []
+    global_index = 0
+    lengths = sorted({length for counts in split_counts.values() for length in counts})
+    for length in lengths:
+        all_orders = _all_block_orders(length=length, num_blocks=num_blocks)
+        used: set[tuple[int, ...]] = set()
+        for split_index, split in enumerate(SPLIT_NAMES):
+            count = int(split_counts.get(split, {}).get(length, 0))
+            if count <= 0:
+                continue
+            remaining = [order for order in all_orders if order not in used]
+            pool = remaining if count <= len(remaining) else all_orders
+            if split == "train" and count == len(all_orders):
+                orders = sorted(all_orders)
+            else:
+                rng = random.Random(base_seed + length * 100 + split_index)
+                orders = _sample_orders(candidates=pool, count=count, rng=rng)
+            used.update(orders)
+            for index, order in enumerate(orders):
+                seq_id = f"{split}_len{length:02d}_trial{index:04d}"
+                episodes.append(
+                    {
+                        "seq_id": seq_id,
+                        "split": split,
+                        "length": int(length),
+                        "block_order": [int(block_id) for block_id in order],
+                        "layout_id": str(config["layout_id"]),
+                        "seed": _episode_seed(config, length=length, index=global_index),
+                    }
+                )
+                global_index += 1
+    return episodes
+
+
 def build_episode_specs(config: dict[str, Any]) -> list[dict[str, Any]]:
+    if _split_length_counts(config) is not None:
+        return build_split_episode_specs(config)
     episodes: list[dict[str, Any]] = []
     per_length = int(config["num_trials_per_length"])
     num_blocks = int(config["num_blocks"])
@@ -190,6 +276,18 @@ def build_episode_specs(config: dict[str, Any]) -> list[dict[str, Any]]:
 def counts_per_length(episodes: Sequence[dict[str, Any]]) -> dict[str, int]:
     counts = Counter(int(item["length"]) for item in episodes)
     return {str(length): int(counts.get(length, 0)) for length in sorted(counts)}
+
+
+def counts_per_split_length(episodes: Sequence[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    counts: dict[str, Counter[int]] = {split: Counter() for split in SPLIT_NAMES}
+    for item in episodes:
+        split = str(item.get("split", ""))
+        if split in counts:
+            counts[split][int(item["length"])] += 1
+    return {
+        split: {str(length): int(count) for length, count in sorted(counter.items())}
+        for split, counter in counts.items()
+    }
 
 
 def _render_frame(env, obs: dict[str, Any], *, camera_name: str, width: int, height: int) -> np.ndarray:
@@ -304,6 +402,8 @@ def generate_episode(
     segments_path = episode_dir / "segments.json"
     if arrays_path.exists() and metadata_path.exists() and segments_path.exists() and not overwrite:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if "split" in episode and "split" not in metadata:
+            metadata["split"] = str(episode["split"])
         return {
             **metadata,
             "arrays_path": str(arrays_path),
@@ -390,6 +490,7 @@ def generate_episode(
     episode_metadata = {
         "schema_version": RAW_SCHEMA_VERSION,
         "seq_id": seq_id,
+        **({"split": str(episode["split"])} if "split" in episode else {}),
         "length": int(episode["length"]),
         "block_order": block_order,
         "layout_id": str(episode["layout_id"]),
@@ -437,26 +538,31 @@ def write_manifest(
     manifest_path = Path(str(config["manifest_path"]))
     samples = []
     for episode in episodes:
-        samples.append(
-            {
-                "seq_id": episode["seq_id"],
-                "length": int(episode["length"]),
-                "block_order": [int(v) for v in episode["block_order"]],
-                "layout_id": str(episode["layout_id"]),
-                "seed": int(episode["seed"]),
-                "frame_count": int(episode["frame_count"]),
-                "arrays_path": str(episode["arrays_path"]),
-                "metadata_path": str(episode["metadata_path"]),
-                "segments_path": str(episode["segments_path"]),
-                "status": str(episode.get("status", "generated")),
-            }
-        )
+        sample = {
+            "seq_id": episode["seq_id"],
+            "length": int(episode["length"]),
+            "block_order": [int(v) for v in episode["block_order"]],
+            "layout_id": str(episode["layout_id"]),
+            "seed": int(episode["seed"]),
+            "frame_count": int(episode["frame_count"]),
+            "arrays_path": str(episode["arrays_path"]),
+            "metadata_path": str(episode["metadata_path"]),
+            "segments_path": str(episode["segments_path"]),
+            "status": str(episode.get("status", "generated")),
+        }
+        if "split" in episode:
+            sample["split"] = str(episode["split"])
+        samples.append(sample)
+    expected_length_counts = _expected_length_counts(config)
+    split_length_counts = counts_per_split_length(samples)
+    has_splits = any(split_length_counts[split] for split in SPLIT_NAMES)
     manifest = {
         "schema_version": RAW_SCHEMA_VERSION,
         "dataset_name": str(config["dataset_name"]),
         "dataset_root": str(root),
+        "plan_path": str(root / "sequence_plan.json"),
         "num_episodes": len(samples),
-        "expected_episodes": len(sequence_lengths(config)) * int(config["num_trials_per_length"]),
+        "expected_episodes": int(sum(expected_length_counts.values())),
         "length_counts": counts_per_length(samples),
         "camera_name": str(config["camera_name"]),
         "array_keys": REQUIRED_ARRAYS,
@@ -464,8 +570,40 @@ def write_manifest(
         "skipped_episodes": list(failed),
         "samples": samples,
     }
+    if has_splits:
+        manifest["split_length_counts"] = split_length_counts
+        manifest["split"] = {
+            split: sorted(str(sample["seq_id"]) for sample in samples if sample.get("split") == split)
+            for split in SPLIT_NAMES
+        }
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return manifest
+
+
+def write_sequence_plan(config: dict[str, Any], episodes: Sequence[dict[str, Any]]) -> Path:
+    root = dataset_root(config)
+    root.mkdir(parents=True, exist_ok=True)
+    plan = {
+        "schema_version": RAW_SCHEMA_VERSION,
+        "dataset_name": str(config["dataset_name"]),
+        "layout_id": str(config["layout_id"]),
+        "num_blocks": int(config["num_blocks"]),
+        "length_counts": counts_per_length(episodes),
+        "split_length_counts": counts_per_split_length(episodes),
+        "total_episodes": int(len(episodes)),
+        "seed": int(config["seed"]),
+        "episodes": [
+            {
+                key: episode[key]
+                for key in ("seq_id", "split", "length", "block_order", "layout_id", "seed")
+                if key in episode
+            }
+            for episode in episodes
+        ],
+    }
+    plan_path = root / "sequence_plan.json"
+    plan_path.write_text(json.dumps(plan, indent=2), encoding="utf-8")
+    return plan_path
 
 
 def generate_raw_dataset(
@@ -475,6 +613,7 @@ def generate_raw_dataset(
     overwrite: bool = False,
 ) -> dict[str, Any]:
     episodes_to_generate = build_episode_specs(config)
+    write_sequence_plan(config, episodes_to_generate)
     if max_episodes is not None:
         episodes_to_generate = episodes_to_generate[: int(max_episodes)]
     generated: list[dict[str, Any]] = []

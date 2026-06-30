@@ -140,14 +140,19 @@ def test_lane_b_c_d_contract_runs_forward_losses_and_evaluation():
 
     stage1_loss = compute_stage1_loss(outputs, batch)
     stage2_loss = compute_stage2_loss(outputs, batch)
+    stage1_components = compute_stage1_loss(outputs, batch, return_components=True)
+    stage2_components = compute_stage2_loss(outputs, batch, return_components=True)
     assert torch.isfinite(stage1_loss)
     assert torch.isfinite(stage2_loss)
+    assert {"joint_loss", "ee_pose_loss", "ee_xy_loss", "loss"} <= set(stage1_components)
+    assert {"seq_loss", "coord_loss", "joint_loss", "ee_pose_loss", "ee_xy_loss", "loss"} <= set(stage2_components)
     (stage1_loss + stage2_loss).backward()
     assert any(parameter.grad is not None for parameter in model.parameters())
 
     metrics = evaluate_loader(model, [batch], device=torch.device("cpu"), stage=2)
     assert metrics["sequence_count"] == 2
     assert "full_sequence_accuracy" in metrics
+    assert {"seq_loss", "coord_loss", "joint_loss", "ee_pose_loss", "ee_xy_loss", "loss"} <= set(metrics)
 
     with torch.no_grad():
         checks = run_causal_sanity_checks(model, batch, eos_token_id=9, ignore_index=-100)
@@ -168,3 +173,7 @@ def test_stage2_evaluation_handles_batch_local_token_padding():
     eval_metrics = evaluate_model(model, batches, device=torch.device("cpu"))
     assert eval_metrics["sequence_count"] == 3
     assert "token_accuracy" in eval_metrics
+    assert "seq_loss" in eval_metrics
+    assert "duplicate_metrics" in eval_metrics
+    assert "predicted_xy" in eval_metrics["rows"][0]
+    assert "target_xy" in eval_metrics["rows"][0]

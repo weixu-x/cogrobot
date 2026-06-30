@@ -1,19 +1,25 @@
 # CogRobot Project State
 
-Last updated: 2026-06-29  
-Updated by: user / Codex  
-Current branch: `codex/corsi-motion`  
+Last updated: 2026-06-30
+Updated by: user / Codex
+Current branch: `codex/corsi-motion`
 Remote branch: `origin/codex/corsi-motion`
 
 Current working state:
-- V2 memory-isolates, slot-compress `D_mem=64`, Stage 0 runner/test, and snapshot report were the latest recorded active local work.
+- V2 LSTM associative-memory binding diagnosis and readout repair completed on 2026-06-29.
+- Canonical final report: `reports/v2_lstm_associative_memory_binding_final_report_20260629.md`.
+- Binding experiment record: `reports/v2_lstm_binding_experiment_record_20260629.md`.
+- Winning full-data repair is LSTM write + `recall_readout_mode="memory_attention"` at `D_mem=64`, best full/token/length `1.000/1.000/1.000` at epoch 17.
+- Main interpretation: ordered item information is present in the write trajectory, but the original final-vector readout loses or fails to expose it; memory-trajectory attention repairs recall by bypassing final-state compression.
+- Experiment (a) on explicit-binding + auxsplit full-data checkpoint is mixed / partially graded, not simple failure: test token `0.704`, U-score `0.202`, distance-dependent transposition `True`, duplicate sequence rate `0.525`.
+- Duplicate handling decision recorded on 2026-06-30: use inference-time output masking as baseline compliance layer; do not use training-time anti-repeat penalty / inhibition at this stage.
 - Generated outputs are under ignored `corsi_artifacts/`.
 - Local working tree and true remote state must be checked at the start of any commit / ops task.
 
 Primary objective:
-- Audit and consolidate the current V2 memory-recall model state.
-- Commit reviewed V2 memory-isolates + Stage 0 closeout only after scope and validation are confirmed.
-- Next model-design target is recall readout / duplicate-collapse, not upstream RGB / Visual / Motor encoding.
+- Treat `memory_attention` as the current solved readout/control condition for V2 memory recall.
+- Next model-design/eval target is output-masking decode A/B classification, then attention-lesion / blank-delay; not upstream RGB / Visual / Motor encoding.
+- Commit reviewed V2 memory-recall changes only after scope and validation are confirmed.
 
 ---
 
@@ -101,7 +107,7 @@ At the end of each task, report:
 |---|---|---|---|---|
 | data | ACTIVE | Dataset/schema loading and validation | V2 data/schema lane implemented and Gate 1/2 validation passed | Dataset status is clear and validator/smoke result is recorded |
 | replay | UNKNOWN - needs eval | qpos / controller replay validation | FK posthoc pass and renderer-threshold failure are report-recorded; needs dedicated eval audit | Replay metrics are machine-readable and decision is recorded |
-| model | ACTIVE | Model/training work | V2 memory-isolates snapshot created; Stage 0 gates integrated and passed; slot-compress `D_mem=64` restores final-memory ordered identity, but long-sequence recall and duplicate suppression remain weak | Memory-isolates + Stage 0 closeout is committed |
+| model | ACTIVE | Model/training work | V2 LSTM binding failure diagnosed and memory-attention readout repair validated. Attention solves full-data recall at `D_mem=64`; compressed final-state ordered identity remains weak, so maintenance/lesion analysis is still open | Binding report and follow-up decisions are recorded |
 | cleanup | PARKED | Remove obsolete files/artifacts safely | Deprecated scratch candidates identified; do not delete without approval | Deletion candidates are reviewed before removal |
 | commit | PARKED | Review, commit, push | Only after implementation/eval is complete | Working tree scope and tests are confirmed |
 
@@ -236,7 +242,7 @@ The raw-only cleanup intentionally does not keep separate `generate_plan`, `vali
 | replay / controller | UNKNOWN - needs eval | `corsi/envs/robosuite_corsi.py`; `corsi/scripts/run_robosuite_corsi.py`; visual export scripts | Robosuite Corsi env, qpos collection, rollout/export helpers | FK posthoc passed in reports; renderer Tier-B threshold failed |
 | motion baseline model / training | PARKED | `corsi/experiments/corsi_motion_baseline/model.py`; `corsi/experiments/corsi_motion_baseline/train.py`; `corsi/experiments/corsi_motion_baseline/run_suite.py` | 7-joint motion predictor and training suite | Do not train unless explicitly requested |
 | motion baseline evaluation / metrics | ACTIVE | `corsi/experiments/corsi_motion_baseline/evaluate.py`; `posthoc_suite.py`; `visualize_predictions.py`; `corsi/analysis/*.py`; `tests/test_corsi_motion_*.py` | Metrics, posthoc summaries, visualization, tests | Not the primary V2 lane |
-| V2 memory recall | ACTIVE | `corsi/experiments/corsi_memory_recall_v2/`; `tests/test_corsi_memory_recall_v2_*.py`; `reports/model_v2_plan.md`; `reports/v2_memory_isolates_snapshot_20260626.md` | V2 segmented RGB memory-recall model, training/eval, Stage 0 gates, and memory-isolate diagnostics | Current best production checkpoint is slot-compress `D_mem=64`; next issue is duplicate-collapse / long-sequence recall |
+| V2 memory recall | ACTIVE | `corsi/experiments/corsi_memory_recall_v2/`; `tests/test_corsi_memory_recall_v2_*.py`; `reports/model_v2_plan.md`; `reports/v2_memory_isolates_snapshot_20260626.md`; `reports/v2_lstm_associative_memory_binding_final_report_20260629.md` | V2 segmented RGB memory-recall model, training/eval, Stage 0 gates, memory-isolate diagnostics, and LSTM binding/readout repair | Current solved readout/control checkpoint is LSTM write + `memory_attention` `D_mem=64`; compressed-memory maintenance remains an open analysis target |
 | reports / handoff | ACTIVE | `reports/model_v1_snapshot.md`; `reports/corsi_motion_current_handoff.md`; baseline audit/final/convergence/visualization reports | Detailed phase records | `model_v1_snapshot.md` is the frozen V1 reference |
 
 ---
@@ -262,6 +268,12 @@ The raw-only cleanup intentionally does not keep separate `generate_plan`, `vali
 | 2026-06-26 | V2 memory-isolates closeout snapshot recorded | Captures current branch/worktree state, Stage 0 integration decision, slot-compress `D_mem=64` result, duplicate-collapse risk, and validation commands | `reports/v2_memory_isolates_snapshot_20260626.md`; `PROJECT_STATE.md` |
 | 2026-06-26 | Stage 0 gates integrated into main | Stage 0-specific code/test from a separate worktree were integrated, while that worktree's older project-state edit was not copied. Main Stage 0 run passed all four gates and wrote ignored artifacts. | `corsi/experiments/corsi_memory_recall_v2/stage0.py`; `tests/test_corsi_memory_recall_v2_stage0.py`; `corsi_artifacts/memory_recall_v2/stage0/summary.json` |
 | 2026-06-29 | Make this file the single canonical operating handoff and project ledger | Future prompts will explicitly load this file; stable operating rules, protected-file rules, generated-artifact rules, raw dataset notes, and thread prompts are consolidated here to avoid split handoff state | `PROJECT_STATE.md` |
+| 2026-06-29 | V2 current-model audit completed in main checkout | Main-checkout artifacts were used to fill complete length 2-9 exact/token/duplicate metrics for the slot-compress `D_mem=64` best-full checkpoint. Lightweight evaluator/loss instrumentation now exposes loss components, per-length token metrics, duplicate metrics, and set-overlap metrics for future eval outputs. | `reports/v2_current_model_audit_20260629.md`; `reports/v2_failure_analysis_20260629.md`; `reports/v2_duplicate_collapse_diagnostic_20260629.md`; `reports/v2_k_ablation_plan_20260629.md`; `reports/v2_loss_output_ablation_plan_20260629.md`; `corsi/experiments/corsi_memory_recall_v2/analysis.py`; `evaluate.py`; `losses.py`; `train.py`; V2 tests |
+| 2026-06-29 | LSTM onset no-training diagnostics completed | Frozen-model probes show LSTM `D_mem=64` final memory is still weak on held-out ordered identity: epoch-139 best-full test final-memory order probe is 0.555 and known-length exact is 0.200. No-repeat decoding gives only a modest test full gain 0.350 to 0.400; oracle length alone gives no full-accuracy gain. Slot-compress remains the stronger memory-write mechanism for ordered identity, while LSTM duplicate/content readout also remains incomplete. | `reports/run_v2_lstm_no_training_diagnostics_20260629.py`; `reports/v2_lstm_no_training_diagnostics_20260629.json`; `reports/v2_lstm_no_training_diagnostics_20260629.md`; `corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629` |
+| 2026-06-29 | LSTM storage-localization probes completed | Item embeddings are perfectly block-decodable on test (1.000), so presentation/segment grounding is not the bottleneck. For epoch-139 best-full, memory trajectory `[h_t;c_t]` predicts current item 0.982 and past set 0.995 exact, but ordered prefix is only 0.743 token / 0.591 exact. Final `c` is stronger than final `h` (0.573 vs 0.545 order token) and final `[h;c]` is 0.582; flattened all-state probes are stronger (all-`h` 0.764, all-`[h;c]` 0.723). This supports attention/readout over memory trajectory and/or slot-compress/hybrid storage rather than revisiting visual grounding. | `reports/run_v2_lstm_storage_localization_20260629.py`; `reports/v2_lstm_storage_localization_20260629.json`; `reports/v2_lstm_storage_localization_20260629.md`; `corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_memory_dmem64_onset_20260629` |
+| 2026-06-29 | V2 LSTM associative-memory binding final report recorded | Phase 1/3 probes show item and position are linearly recoverable from the LSTM write trajectory, while ordered identity remains weak in the final compressed state. The observed failure is therefore a final-state/readout compression bottleneck rather than catastrophic write failure or primary `D_mem` squeeze. Full-data LSTM write + `memory_attention` reaches full/token/length `1.000/1.000/1.000` at epoch 17; final compressed `[h;c]` order probe remains weak at 0.441, so this is a readout repair/control condition, not proof that compressed maintenance is solved. CUDA is available in `robosuite`; earlier CUDA failures were sandbox device-node isolation. | `reports/v2_lstm_associative_memory_binding_final_report_20260629.md`; `reports/v2_lstm_attention_phase3_binding_diagnostics_20260629.md`; `reports/v2_lstm_phase2b_memory_attention_repair_20260629.md`; `corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_lstm_attention_dmem64_20260629/best_full_sequence.pt` |
+| 2026-06-29 | Binding experiment (a) completed for explicit-binding + auxsplit full-data checkpoint | Used epoch-69 `best_full_sequence.pt` from `stage2_seed0_item_context_binding_auxsplit_dmem64_20260629`. Probe test metrics: full `0.325`, token `0.704`, length `0.850`, duplicate `0.525`; serial shape first/middle/last `0.900/0.586/0.675`, U-score `0.202`; transposition adjacent/far `36/21`, adjacent fraction `0.632`, distance-dependent `True`; final `[h;c]` ordered identity probe `0.868`. Conclusion: mixed / partially graded, not simple failure. Keep compressed binding regime as a substrate candidate, but run attention-lesion / blank-delay before selecting the primary regime. | `reports/binding_auxsplit_fulldata_phase1_binding_diagnostics.md`; `reports/binding_auxsplit_fulldata_phase1_binding_diagnostics.json`; `reports/v2_lstm_binding_experiment_record_20260629.md`; `reports/v2_lstm_associative_memory_binding_final_report_20260629.md` |
+| 2026-06-30 | Duplicate output compliance decision recorded | Adopt inference-time output masking as the baseline compliance layer: maintain the set of already emitted block IDs during autonomous decode and set their logits to `-inf` before softmax. Do not add training-time anti-repeat penalty / inhibition now, because it would change learned representations and confound whether U-shape / transposition comes from capacity limits or engineered loss shaping. Next eval must compare pre/post masking duplicate rate, token accuracy, U-score, and final-order probe. If duplicate drops but other metrics are stable, treat duplicate as an output-legality issue and return baseline calibration to `D_mem` / breakpoint. If duplicate does not drop, treat it as a masking implementation/eval-path bug. | `reports/v2_stage_results_summary_20260630.md`; future output-masking eval report TBD |
 
 ---
 
@@ -392,15 +404,15 @@ conda run -n robosuite python -m pytest \
 ### Last known passing result
 
 ```text
-Date: 2026-06-26
-Command: V2 memory-isolates closeout tests, help checks, and Stage 0 runner
+Date: 2026-06-29
+Command: V2 LSTM binding/readout repair validation
 Result: passed/completed
 Notes:
-  - 25 model/train-eval/integration tests passed
-  - 4 Stage 0 tests passed
-  - train/evaluate/stage0 --help passed
-  - main-worktree Stage 0 runner passed all four gates
-  - Stage 0 runner wrote corsi_artifacts/memory_recall_v2/stage0/summary.json
+  - 30 memory-recall V2 model/train-eval/integration tests passed
+  - py_compile passed for touched V2 model/loss/train/analysis/probe files
+  - git diff --check passed
+  - Phase 3 probe passed on memory-attention best checkpoint
+  - CUDA was verified usable in robosuite outside managed sandbox device-node isolation
 ```
 
 ---
@@ -415,8 +427,10 @@ Notes:
 | Visualization renderer Tier-B validation failed threshold in reports | Visual replay confidence is limited | Inspect `reports/corsi_prediction_visualization_report.md` in an eval lane |
 | `joint_only_seed0` long continuation hit a non-finite gradient after the best checkpoint | Long-continuation stability is uncertain | Investigate only if continuation stability matters |
 | Deprecated motion-base result dirs remain under `corsi_artifacts` | Cleanup and implementation may conflict | Classify with path/size/purpose/reference/risk before any deletion |
-| V2 recall still repeats blocks and fails long exact sequences | `slot_compress + D_mem=64` fixes final-memory ordered identity, but autonomous constant-token recall still has duplicate rate about 0.50-0.58 and length/EOS tradeoffs across checkpoints | Next isolate should target recall readout / duplicate suppression, likely lightweight feedback or constrained decoding, rather than more item/memory-write supervision |
-| Complete per-length 2-9 metrics are not fully summarized in this file | Supervisor feedback requires length-by-length result interpretation | Run / inspect V2 evaluator and export per-length exact, token, EOS, predicted-length, and duplicate metrics |
+| V2 compressed final-state recall still has weak maintenance/readout evidence | `memory_attention` solves behavior by querying the write trajectory, but final compressed `[h;c]` remains weak for ordered identity in Phase 3 probes | Run attention-lesion, final-state-only, shuffled-memory-state, and blank-delay controls |
+| Explicit binding + auxsplit full-data checkpoint is partially graded but still ambiguous as primary substrate | Experiment (a) found token `0.704`, U-score `0.202`, distance-dependent transpositions, and high duplicate `0.525`; this is not simple failure but not a clean substrate decision | Run attention-lesion / blank-delay before choosing main substrate |
+| Duplicate masking has not yet been evaluated | Decision is recorded, but no pre/post masking metrics exist yet; duplicate conclusions must not be updated until masking is proven active | Run output-masking autonomous decode and compare duplicate rate / token accuracy / U-score / final-order probe before and after |
+| Complete per-length 2-9 metrics are now summarized in the current-model audit, but generated eval JSONs still need enhanced re-export for new fields | Supervisor feedback now has length-by-length interpretation; old eval JSONs predate the new explicit duplicate/set-overlap schema | Use `reports/v2_current_model_audit_20260629.md` for current interpretation; re-run evaluator only when machine-readable enhanced rows are needed |
 | Loss component curves may not be logged in enough detail | Hard to explain which loss term drives behavior | Audit `losses.py`, `train.py`, and evaluator outputs; add component logging if missing |
 | Stage 1 pretraining value is not fully ablated | Cannot yet say how much pretraining is enough | Run no-pretrain and multiple Stage1-epoch warm-start ablations |
 | K=20 / K=30 V2 memory-recall results do not appear to be current ACTIVE artifacts | Cannot compare sampling density yet | Create clean V2 K ablation configs and canonical artifacts only after approval |
@@ -427,10 +441,10 @@ Notes:
 
 | Priority | Task | Thread type | Notes |
 |---|---|---|---|
-| P0 | Audit current V2 outputs, loss, and evaluation results | `[cogrobot/audit]` | Answer supervisor feedback before changing model architecture |
-| P0 | Produce V2 current model audit report | `[cogrobot/audit]` | Suggested output: `reports/v2_current_model_audit_<YYYYMMDD>.md` |
-| P0 | Export / recover complete length 2-9 metrics | `[cogrobot/eval]` | Include full sequence accuracy, token accuracy, EOS, predicted length, duplicate rate, and error taxonomy |
-| P0 | Add or verify loss-component logging | `[cogrobot/impl/eval]` | Keep default behavior unchanged; expose `seq`, `coord`, `memory_order`, `joint`, `ee_pose`, `ee_xy`, and total loss |
+| P0 | Run output-masking autonomous decode evaluation | `[cogrobot/eval]` | Compare pre/post duplicate rate, token accuracy, U-score, and final-order probe; classify situation A or B |
+| P0 | Run attention-lesion controls on the memory-attention checkpoint | `[cogrobot/eval]` | Mask early memory states, keep only final state, shuffle memory-state order, and compare to final-state probe level |
+| P0 | Design blank-delay / maintenance-only condition | `[cogrobot/design/eval]` | Separate trajectory rereading from compressed memory maintenance |
+| P0 | Keep current V2 audit reports as the canonical answer to supervisor feedback | `[cogrobot/audit]` | Main summaries are `reports/v2_current_model_audit_20260629.md` and `reports/v2_lstm_associative_memory_binding_final_report_20260629.md` |
 | P1 | Commit V2 memory-isolates + Stage 0 closeout | `[cogrobot/commit]` | Include `reports/v2_memory_isolates_snapshot_20260626.md`; do not include generated `corsi_artifacts/` |
 | P1 | Choose next V2 recall readout mechanism after slot-compress fix | `[cogrobot/design/impl]` | Final memory now linearly exposes ordered identity at about 0.88-0.90, so the next isolate should address duplicate suppression and long-sequence autonomous decoding |
 | P1 | Plan K=12/20/30 V2 ablation | `[cogrobot/design]` | Do not reuse deprecated `freecam_motion_segment_uniform` artifacts as current V2 results |
@@ -570,5 +584,8 @@ reports/v2_current_model_audit_<YYYYMMDD>.md
 | 2026-06-24 v2 integration lane | `[cogrobot/impl]` | Merge Lane C/D with Lane B contracts | Lane F compatibility fixes and integration test added; Gate 3/4 and tiny Stage 1/2 smoke passed |
 | 2026-06-26 v2 memory-isolates closeout | `[cogrobot/commit]` | Snapshot memory-isolate code/results and integrate Stage 0 gates | `reports/v2_memory_isolates_snapshot_20260626.md` created; Stage 0 worktree 629d code/test integrated; Stage 0 runner passed in main |
 | 2026-06-29 project-state consolidation | `[cogrobot/handoff]` | Consolidate operating rules and raw dataset handoff into this file | This file becomes the single canonical operating handoff and project ledger |
+| 2026-06-29 v2 LSTM associative-memory binding final report | `[cogrobot/eval/impl]` | Diagnose LSTM binding/readout failure, implement Phase 2B hooks, verify memory-attention repair | `reports/v2_lstm_associative_memory_binding_final_report_20260629.md` recorded; memory-attention checkpoint reaches full/token/length 1.000 at epoch 17; compressed final-state maintenance remains open |
+| 2026-06-29 binding experiment (a) explicit-binding error structure | `[cogrobot/eval]` | Probe epoch-69 explicit-binding + auxsplit full-data checkpoint behind val full 0.250 | Mixed / partially graded: test full 0.325, token 0.704, U-score 0.202, distance-dependent transposition True, duplicate 0.525; proceed to attention-lesion / blank-delay |
+| 2026-06-30 duplicate output compliance decision | `[cogrobot/design/eval]` | Decide how to handle duplicate outputs before baseline calibration | Use inference-time masking as compliance layer; avoid training-time penalty/inhibition until baseline is locked; next thread should run pre/post masking A/B classification |
 | UNKNOWN - needs audit | `[cogrobot/eval]` | qpos replay validation | To be filled |
 | UNKNOWN - needs audit | `[cogrobot/cleanup]` | Deprecated data/code cleanup | To be filled |

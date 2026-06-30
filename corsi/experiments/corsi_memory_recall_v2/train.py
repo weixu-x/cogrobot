@@ -83,9 +83,16 @@ def capture_rng_state() -> dict[str, Any]:
 
 def restore_rng_state(state: Mapping[str, Any]) -> None:
     if "torch" in state:
-        torch.set_rng_state(state["torch"])
+        torch_state = state["torch"]
+        if torch.is_tensor(torch_state):
+            torch_state = torch_state.detach().cpu()
+        torch.set_rng_state(torch_state)
     if torch.cuda.is_available() and state.get("cuda"):
-        torch.cuda.set_rng_state_all(state["cuda"])
+        cuda_states = [
+            item.detach().cpu() if torch.is_tensor(item) else item
+            for item in state["cuda"]
+        ]
+        torch.cuda.set_rng_state_all(cuda_states)
     if "numpy" in state:
         np.random.set_state(state["numpy"])
     if "python" in state:
@@ -171,9 +178,15 @@ def load_checkpoint(
             if (
                 key.startswith("memory_order_head.") or key.startswith("final_memory_order_head.")
                 or key.startswith("final_memory_length_head.")
+                or key.startswith("memory_identity_head.")
                 or key.startswith("memory_slot_item_projection.")
                 or key.startswith("memory_slot_projection.")
+                or key.startswith("memory_binding_item_projection.")
+                or key.startswith("memory_binding_projection.")
+                or key.startswith("memory_attention_")
+                or key.startswith("recall_context_projection.")
                 or key == "memory_slot_position"
+                or key == "memory_binding_context"
             ) and key not in state:
                 state[key] = value
         model.load_state_dict(state)
@@ -401,15 +414,41 @@ def _masked_mse(prediction: torch.Tensor, target: torch.Tensor, mask: torch.Tens
     return torch.mean(diff * diff)
 
 
-def compute_stage1_loss(outputs: Mapping[str, Any], batch: Mapping[str, Any]) -> torch.Tensor:
+def _as_loss_components(loss_result: torch.Tensor | Mapping[str, Any]) -> dict[str, torch.Tensor]:
+    if isinstance(loss_result, Mapping):
+        return {
+            str(key): value
+            for key, value in loss_result.items()
+            if torch.is_tensor(value)
+        }
+    return {"loss": loss_result}
+
+
+def _mean_loss_components(totals: Mapping[str, float], count: int) -> dict[str, float]:
+    return {
+        key: float(value / max(count, 1))
+        for key, value in sorted(totals.items())
+    }
+
+
+def compute_stage1_loss(
+    outputs: Mapping[str, Any],
+    batch: Mapping[str, Any],
+    *,
+    return_components: bool = False,
+) -> torch.Tensor | dict[str, torch.Tensor]:
     try:
         from corsi.experiments.corsi_memory_recall_v2.losses import compute_stage1_loss as lane_c_loss
 
-        return lane_c_loss(outputs, batch)
+        if "return_components" in inspect.signature(lane_c_loss).parameters:
+            return lane_c_loss(outputs, batch, return_components=return_components)
+        result = lane_c_loss(outputs, batch)
+        return _as_loss_components(result) if return_components else result
     except ImportError:
         targets = batch["targets"]
         mask = batch["model_inputs"]["frame_mask"]
-        losses = []
+        components: dict[str, torch.Tensor] = {}
+        total: torch.Tensor | None = None
         for output_key, target_key in (
             ("joint", "joint"),
             ("pred_joint", "joint"),
@@ -419,10 +458,13 @@ def compute_stage1_loss(outputs: Mapping[str, Any], batch: Mapping[str, Any]) ->
             ("pred_ee_xy", "ee_xy"),
         ):
             if output_key in outputs and target_key in targets:
-                losses.append(_masked_mse(outputs[output_key], targets[target_key], mask))
-        if not losses:
+                loss = _masked_mse(outputs[output_key], targets[target_key], mask)
+                components[f"{target_key}_loss"] = components.get(f"{target_key}_loss", loss.sum() * 0.0) + loss
+                total = loss if total is None else total + loss
+        if total is None:
             raise RuntimeError(f"Stage 1 loss needs Lane C losses or auxiliary outputs. {MODEL_INTERFACE_NOTE}")
-        return sum(losses)
+        components["loss"] = total
+        return components if return_components else total
 
 
 def compute_stage2_loss(
@@ -430,22 +472,29 @@ def compute_stage2_loss(
     batch: Mapping[str, Any],
     *,
     weights: Mapping[str, float] | None = None,
-) -> torch.Tensor:
+    return_components: bool = False,
+) -> torch.Tensor | dict[str, torch.Tensor]:
     try:
         from corsi.experiments.corsi_memory_recall_v2.losses import compute_stage2_loss as lane_c_loss
 
-        return lane_c_loss(outputs, batch, weights=weights)
+        if "return_components" in inspect.signature(lane_c_loss).parameters:
+            return lane_c_loss(outputs, batch, weights=weights, return_components=return_components)
+        result = lane_c_loss(outputs, batch, weights=weights)
+        return _as_loss_components(result) if return_components else result
     except ImportError:
         logits = outputs.get("token_logits", outputs.get("logits"))
         if logits is None:
             raise RuntimeError(f"Stage 2 loss needs token logits. {MODEL_INTERFACE_NOTE}")
         targets = batch["targets"]["tokens"]
         ignore_index = int(batch.get("ignore_index", -100))
-        return torch.nn.functional.cross_entropy(
+        loss = torch.nn.functional.cross_entropy(
             logits.reshape(-1, logits.shape[-1]),
             targets.reshape(-1),
             ignore_index=ignore_index,
         )
+        if return_components:
+            return {"seq_loss": loss, "loss": loss}
+        return loss
 
 
 def train_epoch(
@@ -459,18 +508,20 @@ def train_epoch(
     loss_weights: Mapping[str, float] | None = None,
 ) -> dict[str, float]:
     model.train()
-    total = 0.0
+    component_totals: dict[str, float] = {}
     count = 0
     for batch in loader:
         batch = move_to_device(batch, device)
         optimizer.zero_grad(set_to_none=True)
         with torch.amp.autocast(device_type=device.type, enabled=scaler is not None):
             outputs = _call_model(model, batch, stage=stage)
-            loss = (
-                compute_stage1_loss(outputs, batch)
+            loss_result = (
+                compute_stage1_loss(outputs, batch, return_components=True)
                 if stage == 1
-                else compute_stage2_loss(outputs, batch, weights=loss_weights)
+                else compute_stage2_loss(outputs, batch, weights=loss_weights, return_components=True)
             )
+            components = _as_loss_components(loss_result)
+            loss = components["loss"]
         if not torch.isfinite(loss):
             raise FloatingPointError(f"non-finite Stage {stage} loss")
         if scaler is None:
@@ -480,9 +531,13 @@ def train_epoch(
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
-        total += float(loss.detach().cpu().item())
+        for key, value in components.items():
+            if value.ndim == 0:
+                component_totals[key] = component_totals.get(key, 0.0) + float(value.detach().cpu().item())
         count += 1
-    return {"loss": float(total / max(count, 1)), "batches": float(count)}
+    result = _mean_loss_components(component_totals, count)
+    result["batches"] = float(count)
+    return result
 
 
 @torch.no_grad()
@@ -495,7 +550,8 @@ def evaluate_loader(
     loss_weights: Mapping[str, float] | None = None,
 ) -> dict[str, Any]:
     model.eval()
-    losses = []
+    component_totals: dict[str, float] = {}
+    count = 0
     predictions = []
     targets = []
     masks = []
@@ -508,18 +564,23 @@ def evaluate_loader(
             eos_token_id = int(eos_values.flatten()[0].item())
         ignore_index = int(batch.get("ignore_index", ignore_index))
         outputs = _call_model(model, batch, stage=stage)
-        loss = (
-            compute_stage1_loss(outputs, batch)
+        loss_result = (
+            compute_stage1_loss(outputs, batch, return_components=True)
             if stage == 1
-            else compute_stage2_loss(outputs, batch, weights=loss_weights)
+            else compute_stage2_loss(outputs, batch, weights=loss_weights, return_components=True)
         )
-        losses.append(float(loss.detach().cpu().item()))
+        for key, value in _as_loss_components(loss_result).items():
+            if value.ndim == 0:
+                component_totals[key] = component_totals.get(key, 0.0) + float(value.detach().cpu().item())
+        count += 1
         if stage == 2:
             logits = outputs.get("token_logits", outputs.get("logits"))
             predictions.append(logits.detach().cpu())
             targets.append(batch["targets"]["tokens"].detach().cpu())
             masks.append(batch["targets"]["token_mask"].detach().cpu())
-    result: dict[str, Any] = {"loss": float(np.mean(losses)) if losses else 0.0}
+    result: dict[str, Any] = _mean_loss_components(component_totals, count)
+    if "loss" not in result:
+        result["loss"] = 0.0
     if stage == 2 and predictions:
         padded_predictions, padded_targets, padded_masks = pad_sequence_metric_batches(
             predictions,
@@ -547,16 +608,35 @@ def make_loader(
     shuffle: bool,
     seq_ids: list[str] | None = None,
     load_images: bool = True,
+    cache: bool = True,
+    num_workers: int = 0,
+    pin_memory: bool = False,
+    persistent_workers: bool | None = None,
+    prefetch_factor: int | None = None,
 ) -> Any:
     dataset_cls, collate_fn = _import_dataset_components()
-    dataset = dataset_cls(manifest_path, split=split, seq_ids=seq_ids, load_images=load_images)
-    return torch.utils.data.DataLoader(
-        dataset,
-        batch_size=int(batch_size),
-        shuffle=bool(shuffle),
-        num_workers=0,
-        collate_fn=collate_fn,
+    dataset = dataset_cls(
+        manifest_path,
+        split=split,
+        seq_ids=seq_ids,
+        load_images=load_images,
+        cache=bool(cache),
     )
+    worker_count = int(num_workers)
+    loader_kwargs: dict[str, Any] = {
+        "batch_size": int(batch_size),
+        "shuffle": bool(shuffle),
+        "num_workers": worker_count,
+        "collate_fn": collate_fn,
+        "pin_memory": bool(pin_memory),
+    }
+    if worker_count > 0:
+        loader_kwargs["persistent_workers"] = bool(
+            persistent_workers if persistent_workers is not None else True
+        )
+        if prefetch_factor is not None:
+            loader_kwargs["prefetch_factor"] = int(prefetch_factor)
+    return torch.utils.data.DataLoader(dataset, **loader_kwargs)
 
 
 def train_one_run(
@@ -571,6 +651,7 @@ def train_one_run(
     allow_full_training: bool = False,
     dry_run: bool = False,
     warm_start_stage1_checkpoint: str | Path | None = None,
+    early_stopping_patience: int | None = None,
 ) -> dict[str, Any]:
     max_epochs = int(max_epochs if max_epochs is not None else config.get("max_epochs", 3))
     validate_training_scope(
@@ -588,6 +669,14 @@ def train_one_run(
     if warm_start_path and int(stage) != 2:
         raise ValueError("--warm-start-stage1-checkpoint is only valid for Stage 2 training")
     loss_weights = dict(config.get("loss_weights", {})) if isinstance(config.get("loss_weights", {}), Mapping) else {}
+    configured_patience = (
+        early_stopping_patience
+        if early_stopping_patience is not None
+        else config.get("early_stopping_patience")
+    )
+    early_stop_enabled = configured_patience is not None and int(configured_patience) >= 0
+    early_stop_patience = int(configured_patience) if early_stop_enabled else None
+    early_stop_min_delta = float(config.get("early_stopping_min_delta", 0.0))
     summary = {
         "stage": int(stage),
         "seed": int(seed),
@@ -598,6 +687,12 @@ def train_one_run(
         "dry_run": bool(dry_run),
         "warm_start_stage1_checkpoint": warm_start_path,
         "loss_weights": loss_weights,
+        "early_stopping": {
+            "enabled": bool(early_stop_enabled),
+            "monitor": "val.loss",
+            "patience": early_stop_patience,
+            "min_delta": early_stop_min_delta,
+        },
         "model_interface_note": MODEL_INTERFACE_NOTE,
         "fingerprint_state": dataset_fingerprint(manifest),
     }
@@ -610,12 +705,22 @@ def train_one_run(
         train_ids = list(manifest["split"]["train"])[: int(overfit_episodes)]
         val_split = "train"
     batch_size = int(config.get("batch_size", 4))
+    num_workers = int(config.get("num_workers", 0))
+    dataset_cache = bool(config.get("dataset_cache", True))
+    pin_memory = bool(config.get("pin_memory", device.type == "cuda" and num_workers > 0))
+    persistent_workers = config.get("persistent_workers")
+    prefetch_factor = config.get("prefetch_factor")
     train_loader = make_loader(
         manifest_path,
         split="train",
         batch_size=batch_size,
         shuffle=True,
         seq_ids=train_ids,
+        cache=dataset_cache,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers if persistent_workers is None else bool(persistent_workers),
+        prefetch_factor=prefetch_factor if prefetch_factor is None else int(prefetch_factor),
     )
     val_loader = make_loader(
         manifest_path,
@@ -623,6 +728,11 @@ def train_one_run(
         batch_size=batch_size,
         shuffle=False,
         seq_ids=train_ids,
+        cache=dataset_cache,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        persistent_workers=persistent_workers if persistent_workers is None else bool(persistent_workers),
+        prefetch_factor=prefetch_factor if prefetch_factor is None else int(prefetch_factor),
     )
     model = _build_model(config, stage=stage, manifest=manifest).to(device)
     latest_path = run_dir / "latest.pt"
@@ -648,6 +758,8 @@ def train_one_run(
     primary_selection = STAGE2_PRIMARY_SELECTION if int(stage) == 2 else "val_loss"
     best_scores: dict[str, tuple[float, ...]] = {}
     best_paths: dict[str, str] = {}
+    best_val_loss_for_stop = float("inf")
+    epochs_since_val_loss_improvement = 0
     if resuming_existing_run:
         payload = load_checkpoint(
             latest_path,
@@ -660,12 +772,19 @@ def train_one_run(
         start_epoch = int(payload.get("epoch", -1)) + 1
         best_metric = float(payload.get("best_metric", best_metric))
         extra = payload.get("extra") or {}
+        early_state = dict(extra.get("early_stopping", {}))
+        best_val_loss_for_stop = float(early_state.get("best_val_loss", best_val_loss_for_stop))
+        epochs_since_val_loss_improvement = int(
+            early_state.get("epochs_since_improvement", epochs_since_val_loss_improvement)
+        )
         for key, value in dict(extra.get("best_scores", {})).items():
             best_scores[str(key)] = tuple(float(item) for item in value)
         best_paths.update({str(key): str(value) for key, value in dict(extra.get("best_paths", {})).items()})
 
     history = []
     best_path = run_dir / "best.pt"
+    stop_reason = "max_epochs"
+    stopped_epoch: int | None = None
     for epoch in range(start_epoch, max_epochs):
         train_metrics = train_epoch(
             model,
@@ -688,6 +807,21 @@ def train_one_run(
             "val": val_metrics,
             "selection_scores": {key: list(value) for key, value in selection_scores.items()},
         }
+        val_loss = float(val_metrics.get("loss", float("inf")))
+        if early_stop_enabled:
+            improved_val_loss = val_loss < (best_val_loss_for_stop - early_stop_min_delta)
+            if improved_val_loss:
+                best_val_loss_for_stop = val_loss
+                epochs_since_val_loss_improvement = 0
+            else:
+                epochs_since_val_loss_improvement += 1
+            row["early_stopping"] = {
+                "monitor": "val.loss",
+                "best_val_loss": best_val_loss_for_stop,
+                "epochs_since_improvement": epochs_since_val_loss_improvement,
+                "improved": bool(improved_val_loss),
+                "patience": early_stop_patience,
+            }
         history.append(row)
         for key, spec in selection_specs.items():
             score = selection_scores[key]
@@ -732,6 +866,14 @@ def train_one_run(
             "best_scores": {key: list(value) for key, value in best_scores.items()},
             "best_paths": dict(best_paths),
         }
+        if early_stop_enabled:
+            latest_extra["early_stopping"] = {
+                "monitor": "val.loss",
+                "best_val_loss": best_val_loss_for_stop,
+                "epochs_since_improvement": epochs_since_val_loss_improvement,
+                "patience": early_stop_patience,
+                "min_delta": early_stop_min_delta,
+            }
         if warm_start_info is not None:
             latest_extra["warm_start"] = warm_start_info
         save_checkpoint(
@@ -761,6 +903,14 @@ def train_one_run(
                 seed=seed,
                 extra=latest_extra,
             )
+        if (
+            early_stop_enabled
+            and early_stop_patience is not None
+            and epochs_since_val_loss_improvement >= early_stop_patience
+        ):
+            stop_reason = f"early_stopping_val_loss_patience_{early_stop_patience}"
+            stopped_epoch = int(epoch)
+            break
     summary.update(
         {
             "history": history,
@@ -769,6 +919,9 @@ def train_one_run(
             "primary_selection": primary_selection,
             "best_checkpoints": {"primary": str(best_path), **dict(best_paths)},
             "best_scores": {key: list(value) for key, value in best_scores.items()},
+            "completed_epochs": len(history),
+            "stop_reason": stop_reason,
+            "stopped_epoch": stopped_epoch,
         }
     )
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -790,6 +943,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--allow-full-training", action="store_true")
     parser.add_argument("--warm-start-stage1-checkpoint", default="")
+    parser.add_argument("--early-stopping-patience", type=int, default=None)
     args = parser.parse_args(argv)
 
     config = load_config(args.config)
@@ -807,6 +961,7 @@ def main(argv: list[str] | None = None) -> int:
         allow_full_training=bool(args.allow_full_training),
         dry_run=bool(args.dry_run),
         warm_start_stage1_checkpoint=args.warm_start_stage1_checkpoint,
+        early_stopping_patience=args.early_stopping_patience,
     )
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0

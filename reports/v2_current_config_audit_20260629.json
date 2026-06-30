@@ -1,0 +1,25 @@
+{
+  "dataset_name": "corsi_memory_recall_v2_k12",
+  "dataset_root": "corsi_artifacts/memory_recall_v2/canonical/corsi_memory_recall_v2_k12",
+  "schema": "scala_corsi_memory_recall_v2_canonical_v1",
+  "canonical_fingerprint": "782962d47e55a1e4631919f4042bc1eb31ff0b66c7c27adff27aaf7b994b4485",
+  "image_size": 128,
+  "k_samples_per_segment": 12,
+  "num_blocks": 9,
+  "eos_token_id": 9,
+  "max_length": 9,
+  "train_size": 320,
+  "val_size": 40,
+  "test_size": 40,
+  "current_best_checkpoint": "corsi_artifacts/memory_recall_v2/runs/corsi_memory_recall_v2_k12/stage2_seed0_slot_compress_dmem64_full_20260624/best_full_sequence.pt",
+  "current_best_eval_val": "corsi_artifacts/memory_recall_v2/eval/corsi_memory_recall_v2_k12/stage2_seed0_slot_compress_dmem64_full_20260624_best_full_sequence_val_eval.json",
+  "current_best_eval_test": "corsi_artifacts/memory_recall_v2/eval/corsi_memory_recall_v2_k12/stage2_seed0_slot_compress_dmem64_full_20260624_best_full_sequence_test_eval.json",
+  "unavailable_artifacts": [
+    "K=20 current V2 memory-recall artifact: NOT AVAILABLE IN CURRENT ARTIFACTS.",
+    "K=30 current V2 memory-recall artifact: NOT AVAILABLE IN CURRENT ARTIFACTS."
+  ],
+  "deprecated_do_not_use_as_current_v2": [
+    "corsi_artifacts/motion_base/datasets/freecam_motion_segment_uniform_len3_k20",
+    "corsi_artifacts/motion_base/datasets/freecam_motion_segment_uniform_len3_k30"
+  ]
+}
